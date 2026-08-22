@@ -46,6 +46,10 @@
                 viewable
             />
 
+            <flux:text class="-mt-4 text-xs">
+                Use no mínimo 16 caracteres, com letra maiúscula, minúscula, número e símbolo.
+            </flux:text>
+
             <!-- Confirm Password -->
             <flux:input
                 name="password_confirmation"

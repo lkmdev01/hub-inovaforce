@@ -32,5 +32,16 @@ class RegistrationTest extends TestCase
             ->assertRedirect(route('dashboard', absolute: false));
 
         $this->assertAuthenticated();
+        $this->assertFalse($user->is_admin);
+        $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_unverified_customer_cannot_access_the_portal(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard', ['current_team' => $user->personalTeam()]))
+            ->assertRedirect(route('verification.notice'));
     }
 }
