@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Invoice;
 use App\Models\BillingCustomer;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\Subscription;

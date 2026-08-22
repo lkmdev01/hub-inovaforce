@@ -23,7 +23,6 @@ use Illuminate\Support\Carbon;
  * @property-read Team $team
  * @property-read CustomerGroup|null $group
  */
-
 #[Fillable(['team_id', 'customer_group_id', 'billing_provider', 'external_customer_id', 'abacatepay_customer_id', 'name', 'email', 'tax_id', 'cellphone', 'zip_code', 'synced_at'])]
 class BillingCustomer extends Model
 {

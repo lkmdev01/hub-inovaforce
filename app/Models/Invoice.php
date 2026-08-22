@@ -24,7 +24,6 @@ use Illuminate\Support\Carbon;
  * @property-read Team $team
  * @property-read Subscription|null $subscription
  */
-
 #[Fillable(['team_id', 'subscription_id', 'billing_provider', 'external_payment_id', 'payment_url', 'receipt_url', 'bank_slip_url', 'failure_reason', 'number', 'status', 'currency', 'subtotal', 'total', 'issued_at', 'due_at', 'paid_at', 'refunded_at'])]
 class Invoice extends Model
 {

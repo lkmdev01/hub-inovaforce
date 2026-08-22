@@ -225,7 +225,7 @@ class AsaasWebhookController extends Controller
     }
 
     /** @param array<string, mixed> $payload
-     *  @param array<int, string> $paths
+     * @param  array<int, string>  $paths
      */
     private function firstId(array $payload, array $paths): ?string
     {

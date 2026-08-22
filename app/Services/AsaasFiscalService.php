@@ -7,7 +7,6 @@ use App\Models\FiscalDocument;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use Illuminate\Support\Carbon;
-use RuntimeException;
 use Throwable;
 
 class AsaasFiscalService

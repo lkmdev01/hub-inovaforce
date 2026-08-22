@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Middleware\SetTeamUrlDefaults;
 use App\Http\Middleware\EnsureAdministrator;
+use App\Http\Middleware\SetTeamUrlDefaults;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;

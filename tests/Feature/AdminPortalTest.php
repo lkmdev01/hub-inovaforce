@@ -15,6 +15,13 @@ class AdminPortalTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['services.asaas.api_key' => null]);
+    }
+
     public function test_customer_cannot_access_the_administration_area(): void
     {
         $customer = User::factory()->create();

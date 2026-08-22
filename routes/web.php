@@ -1,16 +1,16 @@
 <?php
 
 use App\Http\Controllers\AbacatePayWebhookController;
-use App\Http\Controllers\AsaasWebhookController;
-use App\Http\Controllers\BillingPortalController;
-use App\Http\Controllers\BillingCustomerController;
-use App\Http\Controllers\SubscriptionCheckoutController;
+use App\Http\Controllers\Admin\AdminAutomationController;
 use App\Http\Controllers\Admin\AdminCustomerController;
 use App\Http\Controllers\Admin\AdminCustomerGroupController;
-use App\Http\Controllers\Admin\AdminAutomationController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminProductController;
 use App\Http\Controllers\Admin\AdminSubscriptionController;
+use App\Http\Controllers\AsaasWebhookController;
+use App\Http\Controllers\BillingCustomerController;
+use App\Http\Controllers\BillingPortalController;
+use App\Http\Controllers\SubscriptionCheckoutController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 

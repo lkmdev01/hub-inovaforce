@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $abacatepay_product_id
  * @property-read Product $product
  */
-
 #[Fillable(['product_id', 'name', 'billing_cycle', 'price', 'billing_provider', 'external_product_id', 'abacatepay_product_id'])]
 class ProductPlan extends Model
 {

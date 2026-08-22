@@ -162,7 +162,7 @@ class AsaasClient
     }
 
     /** @param array<string, mixed> $payload
-     *  @return array<string, mixed>
+     * @return array<string, mixed>
      */
     private function post(string $path, array $payload): array
     {
@@ -170,7 +170,7 @@ class AsaasClient
     }
 
     /** @param array<string, mixed> $payload
-     *  @return array<string, mixed>
+     * @return array<string, mixed>
      */
     private function put(string $path, array $payload): array
     {

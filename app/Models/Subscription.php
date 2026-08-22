@@ -37,7 +37,6 @@ use Illuminate\Support\Carbon;
  * @property-read ProductPlan|null $plan
  * @property-read ProductPlan|null $pendingPlan
  */
-
 #[Fillable(['team_id', 'product_id', 'product_plan_id', 'pending_product_plan_id', 'plan_name', 'status', 'access_status', 'access_reason', 'access_updated_at', 'fiscal_configured_at', 'billing_cycle', 'amount', 'seats', 'billing_provider', 'external_checkout_id', 'external_subscription_id', 'external_payment_id', 'renews_at', 'canceled_at', 'abacatepay_checkout_id', 'abacatepay_subscription_id', 'checkout_url'])]
 class Subscription extends Model
 {
