@@ -1,0 +1,30 @@
+<x-layouts::app :title="__('Automações')">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-8">
+        <div><p class="mb-1 text-sm font-medium text-violet-600">Administração</p><h1 class="text-3xl font-semibold tracking-tight">Automações e eventos</h1><p class="mt-2 text-zinc-500">Acompanhe alertas, comunicações, movimentações financeiras e notas fiscais.</p></div>
+
+        @foreach (['success', 'warning', 'error'] as $message)@if(session($message))<x-portal-alert :type="$message">{{ session($message) }}</x-portal-alert>@endif @endforeach
+
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="portal-card p-5"><span class="portal-kicker">Alertas abertos</span><p class="mt-5 text-3xl font-semibold">{{ $metrics['open_alerts'] }}</p><p class="mt-1 text-sm text-zinc-500">itens que exigem atenção</p></div>
+            <div class="portal-card p-5"><span class="portal-kicker">Falhas de envio</span><p class="mt-5 text-3xl font-semibold">{{ $metrics['failed_communications'] }}</p><p class="mt-1 text-sm text-zinc-500">e-mails não entregues</p></div>
+            <div class="portal-card p-5"><span class="portal-kicker">WhatsApp</span><p class="mt-5 text-3xl font-semibold">{{ $metrics['whatsapp_waiting'] }}</p><p class="mt-1 text-sm text-zinc-500">aguardando provedor</p></div>
+            <div class="portal-card p-5"><span class="portal-kicker">Erros fiscais</span><p class="mt-5 text-3xl font-semibold">{{ $metrics['fiscal_errors'] }}</p><p class="mt-1 text-sm text-zinc-500">notas com falha</p></div>
+        </div>
+
+        <section class="portal-card overflow-hidden">
+            <div class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800"><h2 class="font-semibold">Alertas operacionais</h2><p class="mt-1 text-sm text-zinc-500">Falhas de pagamento, chargebacks, inadimplência e problemas fiscais.</p></div>
+            <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                @forelse ($alerts as $alert)
+                    <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><span class="size-2.5 shrink-0 rounded-full {{ $alert->severity === 'critical' || $alert->severity === 'error' ? 'bg-red-500' : 'bg-amber-500' }}"></span><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><strong class="text-sm">{{ $alert->title }}</strong><x-portal-status :status="$alert->status" /></div><p class="mt-1 text-sm text-zinc-500">{{ $alert->message }}</p><span class="text-xs text-zinc-400">{{ $alert->team?->name ?? 'Sem cliente' }} · {{ $alert->created_at->format('d/m/Y H:i') }}</span></div>@if($alert->status === 'open')<form method="POST" action="{{ route('admin.automations.resolve', $alert) }}">@csrf @method('PATCH')<button class="text-sm font-semibold text-violet-600">Resolver</button></form>@endif</div>
+                @empty<div class="p-8 text-center text-sm text-zinc-500">Nenhum alerta registrado.</div>@endforelse
+            </div>
+        </section>
+
+        <div class="grid gap-6 xl:grid-cols-2">
+            <section class="portal-card overflow-hidden"><div class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800"><h2 class="font-semibold">Comunicações</h2><p class="mt-1 text-sm text-zinc-500">E-mails enviados e mensagens preparadas para WhatsApp.</p></div><div class="divide-y divide-zinc-100 dark:divide-zinc-800">@forelse($communications as $item)<div class="flex items-center gap-3 p-4"><span class="portal-icon bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"><flux:icon.envelope class="size-4" /></span><div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ str($item->template)->replace('_', ' ')->headline() }}</strong><span class="block truncate text-xs text-zinc-500">{{ ucfirst($item->channel) }} · {{ $item->recipient }} · {{ $item->team?->name }}</span></div><x-portal-status :status="$item->status" /></div>@empty<div class="p-8 text-center text-sm text-zinc-500">Nenhuma comunicação registrada.</div>@endforelse</div></section>
+            <section class="portal-card overflow-hidden"><div class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800"><h2 class="font-semibold">Notas fiscais</h2><p class="mt-1 text-sm text-zinc-500">NFS-e sincronizadas pelo Asaas.</p></div><div class="divide-y divide-zinc-100 dark:divide-zinc-800">@forelse($documents as $document)<div class="flex items-center gap-3 p-4"><div class="min-w-0 flex-1"><strong class="block text-sm">{{ $document->number ?: $document->external_invoice_id }}</strong><span class="text-xs text-zinc-500">{{ $document->team?->name }} · {{ $document->subscription?->product?->name }}</span></div><x-portal-status :status="$document->status" />@if($document->pdf_url)<a href="{{ $document->pdf_url }}" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-violet-600">PDF</a>@endif</div>@empty<div class="p-8 text-center text-sm text-zinc-500">Nenhuma nota fiscal sincronizada.</div>@endforelse</div></section>
+        </div>
+
+        <section class="portal-card overflow-hidden"><div class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800"><h2 class="font-semibold">Histórico financeiro</h2><p class="mt-1 text-sm text-zinc-500">Linha do tempo consolidada recebida pelos webhooks.</p></div><div class="divide-y divide-zinc-100 dark:divide-zinc-800">@forelse($events as $event)<div class="flex items-center gap-4 px-5 py-4"><span class="size-2 rounded-full bg-violet-500"></span><div class="min-w-0 flex-1"><strong class="block text-sm">{{ $event->title }}</strong><span class="block text-xs text-zinc-500">{{ $event->team?->name }} · {{ $event->description }}</span></div>@if($event->amount !== null)<strong class="text-sm">R$ {{ number_format($event->amount, 2, ',', '.') }}</strong>@endif<span class="whitespace-nowrap text-xs text-zinc-400">{{ $event->occurred_at->format('d/m/Y H:i') }}</span></div>@empty<div class="p-8 text-center text-sm text-zinc-500">Nenhum evento financeiro registrado.</div>@endforelse</div></section>
+    </div>
+</x-layouts::app>
