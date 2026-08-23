@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\AbacatePayWebhookController;
 use App\Http\Controllers\Admin\AdminAutomationController;
 use App\Http\Controllers\Admin\AdminCustomerController;
 use App\Http\Controllers\Admin\AdminCustomerGroupController;
@@ -15,7 +14,6 @@ use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
-Route::post('webhooks/abacatepay', AbacatePayWebhookController::class)->name('webhooks.abacatepay');
 Route::post('webhooks/asaas', AsaasWebhookController::class)->name('webhooks.asaas');
 
 Route::prefix('admin')->middleware(['auth', 'verified', 'admin'])->name('admin.')->group(function () {

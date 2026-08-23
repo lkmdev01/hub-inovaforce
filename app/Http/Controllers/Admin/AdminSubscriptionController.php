@@ -31,7 +31,7 @@ class AdminSubscriptionController extends Controller
             return back()->with('warning', 'Essa assinatura já está cancelada.');
         }
 
-        if ($subscription->external_subscription_id || $subscription->external_checkout_id || $subscription->abacatepay_subscription_id) {
+        if ($subscription->external_subscription_id || $subscription->external_checkout_id) {
             try {
                 $billing->cancel($subscription);
             } catch (RuntimeException $exception) {

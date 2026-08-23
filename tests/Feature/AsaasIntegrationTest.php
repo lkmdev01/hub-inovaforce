@@ -22,7 +22,6 @@ class AsaasIntegrationTest extends TestCase
         parent::setUp();
 
         config([
-            'services.billing.provider' => 'asaas',
             'services.asaas.api_key' => 'sandbox-key',
             'services.asaas.base_url' => 'https://api-sandbox.asaas.com/v3',
             'services.asaas.checkout_url' => 'https://asaas.com/checkoutSession/show',

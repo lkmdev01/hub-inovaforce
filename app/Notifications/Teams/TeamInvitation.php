@@ -37,18 +37,22 @@ class TeamInvitation extends Notification implements ShouldQueue
     {
         $team = $this->invitation->team;
         $inviter = $this->invitation->inviter;
+        $data = [
+            'preheader' => $inviter->name.' convidou você para acessar '.$team->name.'.',
+            'eyebrow' => 'CONVITE DE EQUIPE',
+            'title' => 'Você recebeu um convite',
+            'greeting' => 'Olá!',
+            'intro' => $inviter->name.' convidou você para participar da equipe '.$team->name.' no Hub Inovaforce.',
+            'actionUrl' => route('login', ['invitation' => $this->invitation->code]),
+            'actionLabel' => 'Entrar e responder',
+            'details' => ['Acesse o painel para aceitar ou recusar este convite.'],
+            'outro' => 'Se você não esperava este convite, pode ignorar esta mensagem.',
+            'securityNote' => 'Não encaminhe este e-mail: o convite foi enviado exclusivamente para você.',
+        ];
 
         return (new MailMessage)
-            ->subject(__("You've been invited to join :teamName", ['teamName' => $team->name]))
-            ->line(__(':inviterName has invited you to join the :teamName team.', [
-                'inviterName' => $inviter->name,
-                'teamName' => $team->name,
-            ]))
-            ->line(__('Log in and visit your dashboard to accept or decline this invitation.'))
-            ->action(
-                __('Log in'),
-                route('login', ['invitation' => $this->invitation->code]),
-            );
+            ->subject('Convite para acessar '.$team->name.' | Hub Inovaforce')
+            ->view(['html' => 'emails.action', 'text' => 'emails.action-text'], $data);
     }
 
     /**

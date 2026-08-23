@@ -91,11 +91,10 @@ class AdminPortalTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.plans.update', $plan), [
             'price' => 199.90,
-            'abacatepay_product_id' => 'prod_profissional',
         ])->assertSessionHas('success');
 
         $this->assertDatabaseHas(Product::class, ['id' => $product->id, 'name' => 'Flow CRM Pro']);
-        $this->assertDatabaseHas(ProductPlan::class, ['id' => $plan->id, 'price' => 199.90, 'abacatepay_product_id' => 'prod_profissional']);
+        $this->assertDatabaseHas(ProductPlan::class, ['id' => $plan->id, 'price' => 199.90]);
         $this->actingAs($admin)->get(route('admin.products.index'))->assertOk()->assertSee('Flow CRM Pro');
     }
 

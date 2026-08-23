@@ -25,15 +25,21 @@ class BillingEventNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $mail = (new MailMessage)
+        $data = [
+            'preheader' => $this->message,
+            'eyebrow' => 'ATUALIZAÇÃO FINANCEIRA',
+            'title' => $this->title,
+            'greeting' => 'Olá, '.($notifiable->name ?? 'cliente').'!',
+            'intro' => $this->message,
+            'actionUrl' => $this->actionUrl,
+            'actionLabel' => $this->actionLabel ?? 'Acessar o Hub',
+            'details' => [],
+            'outro' => 'Você pode acompanhar cobranças, faturas e assinaturas diretamente no Hub Inovaforce.',
+            'securityNote' => 'Esta é uma mensagem automática sobre sua conta.',
+        ];
+
+        return (new MailMessage)
             ->subject($this->title)
-            ->greeting('Olá!')
-            ->line($this->message);
-
-        if ($this->actionUrl) {
-            $mail->action($this->actionLabel ?? 'Acessar o Hub', $this->actionUrl);
-        }
-
-        return $mail->line('Esta mensagem foi enviada automaticamente pelo Hub Inovaforce.');
+            ->view(['html' => 'emails.action', 'text' => 'emails.action-text'], $data);
     }
 }

@@ -77,7 +77,6 @@ class AdminProductController extends Controller
     {
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:1'],
-            'abacatepay_product_id' => ['nullable', 'string', 'max:255'],
         ]);
         $plan->update($data);
 

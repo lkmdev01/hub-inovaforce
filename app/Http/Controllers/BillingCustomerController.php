@@ -40,15 +40,11 @@ class BillingCustomerController extends Controller
 
         try {
             $remote = $billingProvider->syncCustomer($customer);
-            $attributes = [
+            $customer->update([
                 'billing_provider' => $remote['provider'],
                 'external_customer_id' => $remote['id'],
                 'synced_at' => now(),
-            ];
-            if ($remote['provider'] === 'abacatepay') {
-                $attributes['abacatepay_customer_id'] = $remote['id'];
-            }
-            $customer->update($attributes);
+            ]);
         } catch (RuntimeException $exception) {
             return back()->withInput()->with('error', $exception->getMessage());
         }

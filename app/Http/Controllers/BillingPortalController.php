@@ -73,7 +73,7 @@ class BillingPortalController extends Controller
             ->whereKey($data['product_plan_id'])
             ->firstOrFail();
 
-        if ($subscription->external_subscription_id || $subscription->abacatepay_subscription_id) {
+        if ($subscription->external_subscription_id) {
             try {
                 $billing->changePlan($subscription, $plan);
             } catch (RuntimeException $exception) {
@@ -109,7 +109,7 @@ class BillingPortalController extends Controller
                 ->with('warning', 'Assinaturas canceladas não podem ser reativadas. Inicie uma nova contratação.');
         }
 
-        if ($subscription->external_subscription_id || $subscription->external_checkout_id || $subscription->abacatepay_subscription_id) {
+        if ($subscription->external_subscription_id || $subscription->external_checkout_id) {
             try {
                 $billing->cancel($subscription);
             } catch (RuntimeException $exception) {

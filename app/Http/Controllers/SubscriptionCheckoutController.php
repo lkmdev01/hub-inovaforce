@@ -24,19 +24,14 @@ class SubscriptionCheckoutController extends Controller
             return back()->with('error', 'Adicione ASAAS_API_KEY ao ambiente para iniciar checkouts.');
         }
 
-        $hasLegacyCustomer = $billing->provider() === 'abacatepay' && filled($customer->abacatepay_customer_id);
-        if (($customer->billing_provider !== $billing->provider() || ! $customer->external_customer_id) && ! $hasLegacyCustomer) {
+        if ($customer->billing_provider !== $billing->provider() || ! $customer->external_customer_id) {
             try {
                 $remoteCustomer = $billing->syncCustomer($customer);
-                $attributes = [
+                $customer->update([
                     'billing_provider' => $remoteCustomer['provider'],
                     'external_customer_id' => $remoteCustomer['id'],
                     'synced_at' => now(),
-                ];
-                if ($remoteCustomer['provider'] === 'abacatepay') {
-                    $attributes['abacatepay_customer_id'] = $remoteCustomer['id'];
-                }
-                $customer->update($attributes);
+                ]);
             } catch (RuntimeException $exception) {
                 return back()->with('error', $exception->getMessage());
             }
@@ -65,15 +60,11 @@ class SubscriptionCheckoutController extends Controller
 
         try {
             $checkout = $billing->createSubscriptionCheckout($customer->load('team'), $plan, $subscription);
-            $attributes = [
+            $subscription->update([
                 'billing_provider' => $checkout['provider'],
                 'external_checkout_id' => $checkout['checkout_id'],
                 'checkout_url' => $checkout['url'],
-            ];
-            if ($checkout['provider'] === 'abacatepay') {
-                $attributes['abacatepay_checkout_id'] = $checkout['checkout_id'];
-            }
-            $subscription->update($attributes);
+            ]);
         } catch (RuntimeException $exception) {
             $subscription->delete();
 

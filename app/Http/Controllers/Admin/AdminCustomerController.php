@@ -74,15 +74,11 @@ class AdminCustomerController extends Controller
         if ($billing->configured()) {
             try {
                 $remote = $billing->syncCustomer($customer);
-                $attributes = [
+                $customer->update([
                     'billing_provider' => $remote['provider'],
                     'external_customer_id' => $remote['id'],
                     'synced_at' => now(),
-                ];
-                if ($remote['provider'] === 'abacatepay') {
-                    $attributes['abacatepay_customer_id'] = $remote['id'];
-                }
-                $customer->update($attributes);
+                ]);
             } catch (RuntimeException $exception) {
                 return redirect()->route('admin.customers.show', $team)
                     ->with('warning', 'Cliente local criado, mas a sincronização falhou: '.$exception->getMessage());
@@ -107,15 +103,11 @@ class AdminCustomerController extends Controller
 
         try {
             $remote = $billing->syncCustomer($customer);
-            $attributes = [
+            $customer->update([
                 'billing_provider' => $remote['provider'],
                 'external_customer_id' => $remote['id'],
                 'synced_at' => now(),
-            ];
-            if ($remote['provider'] === 'abacatepay') {
-                $attributes['abacatepay_customer_id'] = $remote['id'];
-            }
-            $customer->update($attributes);
+            ]);
         } catch (RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
         }

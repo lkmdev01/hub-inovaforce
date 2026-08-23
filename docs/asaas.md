@@ -1,13 +1,12 @@
 # Configuração do Asaas
 
-O Hub usa o Asaas como provedor padrão para novos clientes e novas assinaturas. Os registros antigos do AbacatePay continuam sendo reconhecidos durante a migração.
+O Hub usa exclusivamente o Asaas para clientes, cobranças, assinaturas, checkouts e notas fiscais.
 
 ## Ambiente de testes
 
 Adicione ao arquivo `.env`:
 
 ```dotenv
-BILLING_PROVIDER=asaas
 ASAAS_API_KEY=sua_chave_do_sandbox
 ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3
 ASAAS_CHECKOUT_URL=https://asaas.com/checkoutSession/show
