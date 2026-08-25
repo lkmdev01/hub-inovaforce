@@ -23,7 +23,7 @@
                             <tr class="hover:bg-zinc-50/70 dark:hover:bg-zinc-900/40">
                                 <td class="px-5 py-4"><a href="{{ route('admin.customers.show', $subscription->team) }}" wire:navigate class="font-semibold hover:text-violet-600">{{ $subscription->team->name }}</a><span class="block text-xs text-zinc-500">{{ $subscription->team->billingCustomer?->email }}</span></td>
                                 <td class="px-5 py-4"><strong class="block">{{ $subscription->product->name }}</strong><span class="text-xs text-zinc-500">{{ $subscription->plan_name }} · {{ $subscription->seats }} acesso(s)</span></td>
-                                <td class="px-5 py-4"><strong>R$ {{ number_format($subscription->amount, 2, ',', '.') }}</strong><span class="block text-xs text-zinc-500">/{{ $subscription->billing_cycle === 'yearly' ? 'ano' : 'mês' }}</span></td>
+                                <td class="px-5 py-4"><strong>R$ {{ number_format($subscription->amount, 2, ',', '.') }}</strong><span class="block text-xs text-zinc-500">{{ App\Models\ProductPlan::CYCLES[$subscription->billing_cycle] ?? $subscription->billing_cycle }}</span></td>
                                 <td class="px-5 py-4 text-zinc-600 dark:text-zinc-300">{{ $subscription->renews_at?->format('d/m/Y') ?? '—' }}</td>
                                 <td class="px-5 py-4"><x-portal-status :status="$subscription->status" /></td>
                                 <td class="px-5 py-4"><x-portal-status :status="$subscription->access_status" /></td>

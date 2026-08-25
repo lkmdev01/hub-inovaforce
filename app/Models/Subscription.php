@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string $billing_cycle
  * @property string $amount
  * @property int $seats
+ * @property int|null $pending_seats
  * @property string|null $billing_provider
  * @property string|null $external_checkout_id
  * @property string|null $external_subscription_id
@@ -35,9 +36,39 @@ use Illuminate\Support\Carbon;
  * @property-read ProductPlan|null $plan
  * @property-read ProductPlan|null $pendingPlan
  */
-#[Fillable(['team_id', 'product_id', 'product_plan_id', 'pending_product_plan_id', 'plan_name', 'status', 'access_status', 'access_reason', 'access_updated_at', 'fiscal_configured_at', 'billing_cycle', 'amount', 'seats', 'billing_provider', 'external_checkout_id', 'external_subscription_id', 'external_payment_id', 'renews_at', 'canceled_at', 'checkout_url'])]
+#[Fillable(['team_id', 'product_id', 'product_plan_id', 'pending_product_plan_id', 'plan_name', 'status', 'access_status', 'access_reason', 'access_updated_at', 'fiscal_configured_at', 'billing_cycle', 'amount', 'seats', 'pending_seats', 'billing_provider', 'external_checkout_id', 'external_subscription_id', 'external_payment_id', 'renews_at', 'canceled_at', 'checkout_url'])]
 class Subscription extends Model
 {
+    public function monthlyEquivalentAmount(): float
+    {
+        $amount = (float) $this->amount;
+
+        return match ($this->billing_cycle) {
+            'weekly' => $amount * 52 / 12,
+            'biweekly' => $amount * 26 / 12,
+            'bimonthly' => $amount / 2,
+            'quarterly' => $amount / 3,
+            'semiannually' => $amount / 6,
+            'yearly' => $amount / 12,
+            default => $amount,
+        };
+    }
+
+    public function nextRenewalAt(?Carbon $from = null): Carbon
+    {
+        $renewal = $from?->copy() ?? Carbon::now();
+
+        return match ($this->billing_cycle) {
+            'weekly' => $renewal->addWeek(),
+            'biweekly' => $renewal->addWeeks(2),
+            'bimonthly' => $renewal->addMonths(2),
+            'quarterly' => $renewal->addMonths(3),
+            'semiannually' => $renewal->addMonths(6),
+            'yearly' => $renewal->addYear(),
+            default => $renewal->addMonth(),
+        };
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Subscription $subscription): void {
@@ -88,6 +119,8 @@ class Subscription extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'seats' => 'integer',
+            'pending_seats' => 'integer',
             'renews_at' => 'datetime',
             'canceled_at' => 'datetime',
             'access_updated_at' => 'datetime',

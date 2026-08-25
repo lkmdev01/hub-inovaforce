@@ -31,11 +31,14 @@
                             <form method="POST" action="{{ route('subscriptions.store', ['plan' => $product->plans->first()]) }}" class="grid gap-3">
                                 @csrf
                                 <label class="grid gap-1.5 text-xs font-semibold text-zinc-500">Escolha o plano
-                                    <select name="plan_preview" onchange="this.form.action=this.options[this.selectedIndex].dataset.action" class="rounded-xl border-zinc-300 bg-white text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white">
+                                    <select name="plan_preview" onchange="const option=this.options[this.selectedIndex]; this.form.action=option.dataset.action; const seats=this.form.elements.seats; seats.min=option.dataset.min; seats.max=option.dataset.max; if(Number(seats.value) < Number(seats.min)) seats.value=seats.min; if(Number(seats.value) > Number(seats.max)) seats.value=seats.max" class="rounded-xl border-zinc-300 bg-white text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white">
                                         @foreach ($product->plans as $plan)
-                                            <option data-action="{{ route('subscriptions.store', ['plan' => $plan]) }}">{{ $plan->name }} · R$ {{ number_format($plan->price, 2, ',', '.') }}/{{ $plan->billing_cycle === 'yearly' ? 'ano' : 'mês' }}</option>
+                                            <option data-action="{{ route('subscriptions.store', ['plan' => $plan]) }}" data-min="{{ $plan->minimum_seats }}" data-max="{{ $plan->maximum_seats ?? 500 }}">{{ $plan->name }} · R$ {{ number_format($plan->price, 2, ',', '.') }}{{ $plan->pricing_model === 'per_seat' ? '/licença' : '' }} · {{ App\Models\ProductPlan::CYCLES[$plan->billing_cycle] ?? $plan->billing_cycle }} · {{ App\Models\ProductPlan::BILLING_TYPES[$plan->billing_type] ?? $plan->billing_type }}</option>
                                         @endforeach
                                     </select>
+                                </label>
+                                <label class="grid gap-1.5 text-xs font-semibold text-zinc-500">Quantidade de licenças
+                                    <input name="seats" type="number" min="{{ $product->plans->first()->minimum_seats }}" max="{{ $product->plans->first()->maximum_seats ?? 500 }}" value="{{ $product->plans->first()->minimum_seats }}" required class="rounded-xl border-zinc-300 bg-white text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white" />
                                 </label>
                                 <button class="flex h-10 items-center justify-center rounded-xl bg-violet-600 text-sm font-semibold text-white hover:bg-violet-500" @disabled($product->plans->isEmpty())>Assinar agora</button>
                             </form>

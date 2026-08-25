@@ -132,9 +132,23 @@ class AsaasWebhookController extends Controller
 
     private function activate(Subscription $subscription): void
     {
+        if ($subscription->pendingPlan) {
+            $plan = $subscription->pendingPlan;
+            $seats = $subscription->pending_seats ?? $subscription->seats;
+            $subscription->forceFill([
+                'product_plan_id' => $plan->id,
+                'pending_product_plan_id' => null,
+                'plan_name' => $plan->name,
+                'billing_cycle' => $plan->billing_cycle,
+                'amount' => $plan->totalForSeats($seats),
+                'seats' => $seats,
+                'pending_seats' => null,
+            ]);
+        }
+
         $subscription->update([
             'status' => 'active',
-            'renews_at' => $subscription->billing_cycle === 'yearly' ? now()->addYear() : now()->addMonth(),
+            'renews_at' => $subscription->nextRenewalAt(),
             'canceled_at' => null,
             'access_status' => 'active',
             'access_reason' => null,

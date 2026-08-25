@@ -21,9 +21,7 @@ class AdminDashboardController extends Controller
             'customers' => BillingCustomer::query()->count(),
             'active_subscriptions' => $activeCount,
             'mrr' => (clone $activeSubscriptions)->get()->sum(
-                fn (Subscription $subscription) => $subscription->billing_cycle === 'yearly'
-                    ? (float) $subscription->amount / 12
-                    : (float) $subscription->amount
+                fn (Subscription $subscription) => $subscription->monthlyEquivalentAmount()
             ),
             'pending_checkouts' => Subscription::query()->where('status', 'pending')->count(),
             'past_due' => Subscription::query()->where('status', 'past_due')->count(),

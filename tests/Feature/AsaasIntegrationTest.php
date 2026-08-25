@@ -75,14 +75,18 @@ class AsaasIntegrationTest extends TestCase
         $plan = ProductPlan::query()->create([
             'product_id' => $product->id,
             'name' => 'Profissional',
-            'billing_cycle' => 'monthly',
-            'price' => 179,
+            'billing_cycle' => 'quarterly',
+            'billing_type' => 'PIX',
+            'price' => 59,
+            'pricing_model' => 'per_seat',
+            'minimum_seats' => 2,
+            'maximum_seats' => 10,
         ]);
 
         $response = $this->actingAs($user)->post(route('subscriptions.store', [
             'current_team' => $user->currentTeam,
             'plan' => $plan,
-        ]));
+        ]), ['seats' => 3]);
 
         $response->assertRedirect('https://asaas.com/checkoutSession/show?id=checkout_asaas_123');
         $this->assertDatabaseHas(Subscription::class, [
@@ -90,12 +94,38 @@ class AsaasIntegrationTest extends TestCase
             'billing_provider' => 'asaas',
             'external_checkout_id' => 'checkout_asaas_123',
             'status' => 'pending',
+            'amount' => 177,
+            'seats' => 3,
         ]);
         Http::assertSent(fn ($request) => $request->url() === 'https://api-sandbox.asaas.com/v3/checkouts'
-            && $request['billingTypes'] === ['CREDIT_CARD']
+            && $request['billingTypes'] === ['PIX']
             && $request['chargeTypes'] === ['RECURRENT']
             && $request['customer'] === 'cus_asaas_123'
-            && $request['subscription']['cycle'] === 'MONTHLY');
+            && $request['items'][0]['quantity'] === 3
+            && $request['items'][0]['value'] === 59.0
+            && $request['subscription']['cycle'] === 'QUARTERLY');
+    }
+
+    public function test_inactive_plan_cannot_create_a_checkout(): void
+    {
+        Http::fake();
+        $user = User::factory()->create();
+        $product = Product::query()->create(['name' => 'Flow CRM', 'slug' => 'flow-crm', 'description' => 'CRM']);
+        $plan = ProductPlan::query()->create([
+            'product_id' => $product->id,
+            'name' => 'Antigo',
+            'status' => 'inactive',
+            'billing_cycle' => 'monthly',
+            'price' => 99,
+        ]);
+
+        $this->actingAs($user)->post(route('subscriptions.store', [
+            'current_team' => $user->currentTeam,
+            'plan' => $plan,
+        ]), ['seats' => 1])->assertSessionHas('error');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing(Subscription::class, ['product_plan_id' => $plan->id]);
     }
 
     public function test_signed_checkout_webhook_activates_subscription_once(): void
@@ -146,6 +176,106 @@ class AsaasIntegrationTest extends TestCase
             'total' => 179,
             'payment_url' => 'https://sandbox.asaas.com/i/pay_asaas_456',
         ]);
+    }
+
+    public function test_payment_confirmation_applies_a_pending_plan_change(): void
+    {
+        $subscription = $this->pendingSubscription([
+            'status' => 'active',
+            'external_checkout_id' => 'checkout_plan_change',
+            'external_subscription_id' => 'sub_plan_change',
+            'seats' => 1,
+            'pending_seats' => 3,
+        ]);
+        $currentPlan = ProductPlan::query()->create([
+            'product_id' => $subscription->product_id,
+            'name' => 'Mensal',
+            'billing_cycle' => 'monthly',
+            'price' => 99,
+        ]);
+        $pendingPlan = ProductPlan::query()->create([
+            'product_id' => $subscription->product_id,
+            'name' => 'Trimestral por licença',
+            'billing_cycle' => 'quarterly',
+            'billing_type' => 'PIX',
+            'price' => 75,
+            'pricing_model' => 'per_seat',
+            'minimum_seats' => 1,
+        ]);
+        $subscription->update([
+            'product_plan_id' => $currentPlan->id,
+            'pending_product_plan_id' => $pendingPlan->id,
+        ]);
+
+        $this->withHeader('asaas-access-token', 'webhook-token')->postJson(route('webhooks.asaas'), [
+            'id' => 'evt_plan_change',
+            'event' => 'PAYMENT_CONFIRMED',
+            'payment' => [
+                'id' => 'pay_plan_change',
+                'subscription' => 'sub_plan_change',
+                'status' => 'CONFIRMED',
+                'value' => 225,
+                'dueDate' => today()->toDateString(),
+            ],
+        ])->assertOk();
+
+        $subscription->refresh();
+        $this->assertSame($pendingPlan->id, $subscription->product_plan_id);
+        $this->assertNull($subscription->pending_product_plan_id);
+        $this->assertSame('Trimestral por licença', $subscription->plan_name);
+        $this->assertSame('quarterly', $subscription->billing_cycle);
+        $this->assertSame('225.00', $subscription->amount);
+        $this->assertSame(3, $subscription->seats);
+        $this->assertNull($subscription->pending_seats);
+        $this->assertTrue($subscription->renews_at->isSameDay(now()->addMonths(3)));
+    }
+
+    public function test_plan_change_keeps_current_access_until_the_next_payment(): void
+    {
+        Http::fake([
+            'https://api-sandbox.asaas.com/v3/subscriptions/sub_future_change' => Http::response(['id' => 'sub_future_change']),
+        ]);
+        $subscription = $this->pendingSubscription([
+            'status' => 'active',
+            'external_subscription_id' => 'sub_future_change',
+            'seats' => 1,
+        ]);
+        $currentPlan = ProductPlan::query()->create([
+            'product_id' => $subscription->product_id,
+            'name' => 'Atual',
+            'billing_cycle' => 'monthly',
+            'price' => 99,
+        ]);
+        $newPlan = ProductPlan::query()->create([
+            'product_id' => $subscription->product_id,
+            'name' => 'Novo',
+            'billing_cycle' => 'quarterly',
+            'billing_type' => 'PIX',
+            'price' => 75,
+            'pricing_model' => 'per_seat',
+            'minimum_seats' => 2,
+            'maximum_seats' => 10,
+        ]);
+        $subscription->update(['product_plan_id' => $currentPlan->id]);
+        $user = $subscription->team->members()->firstOrFail();
+
+        $this->actingAs($user)->patch(route('subscriptions.update', [
+            'current_team' => $subscription->team,
+            'subscription' => $subscription,
+        ]), [
+            'product_plan_id' => $newPlan->id,
+            'seats' => 4,
+        ])->assertSessionHas('success');
+
+        $subscription->refresh();
+        $this->assertSame($currentPlan->id, $subscription->product_plan_id);
+        $this->assertSame($newPlan->id, $subscription->pending_product_plan_id);
+        $this->assertSame(1, $subscription->seats);
+        $this->assertSame(4, $subscription->pending_seats);
+        Http::assertSent(fn ($request) => $request->method() === 'PUT'
+            && $request['value'] === 300.0
+            && $request['cycle'] === 'QUARTERLY'
+            && $request['billingType'] === 'PIX');
     }
 
     public function test_customer_sees_asaas_payment_link_for_an_open_invoice(): void

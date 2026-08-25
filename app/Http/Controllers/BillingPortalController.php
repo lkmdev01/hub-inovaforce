@@ -50,7 +50,10 @@ class BillingPortalController extends Controller
 
     public function products(Team $current_team): View
     {
-        $products = Product::query()->with('plans')->where('status', 'active')->get();
+        $products = Product::query()
+            ->with(['plans' => fn ($query) => $query->where('status', 'active')])
+            ->where('status', 'active')
+            ->get();
         $subscribedProductIds = $current_team->subscriptions()->whereIn('status', ['pending', 'active', 'trialing'])->pluck('product_id');
 
         return view('portal.products', compact('current_team', 'products', 'subscribedProductIds'));
@@ -70,17 +73,25 @@ class BillingPortalController extends Controller
         ]);
         $plan = ProductPlan::query()
             ->where('product_id', $subscription->product_id)
+            ->where('status', 'active')
             ->whereKey($data['product_plan_id'])
             ->firstOrFail();
 
+        if ($data['seats'] < $plan->minimum_seats || $data['seats'] > ($plan->maximum_seats ?? 500)) {
+            return back()->withErrors(['seats' => 'A quantidade de licenças não é permitida para o plano escolhido.']);
+        }
+
         if ($subscription->external_subscription_id) {
             try {
-                $billing->changePlan($subscription, $plan);
+                $billing->changePlan($subscription, $plan, $data['seats']);
             } catch (RuntimeException $exception) {
                 return back()->with('error', $exception->getMessage());
             }
 
-            $subscription->update(['pending_product_plan_id' => $plan->id, 'seats' => $data['seats']]);
+            $subscription->update([
+                'pending_product_plan_id' => $plan->id,
+                'pending_seats' => $data['seats'],
+            ]);
 
             return back()->with('success', 'Troca de plano agendada para o próximo ciclo.');
         }
@@ -89,7 +100,7 @@ class BillingPortalController extends Controller
             'product_plan_id' => $plan->id,
             'plan_name' => $plan->name,
             'billing_cycle' => $plan->billing_cycle,
-            'amount' => $plan->price,
+            'amount' => $plan->totalForSeats($data['seats']),
             'seats' => $data['seats'],
         ]);
 

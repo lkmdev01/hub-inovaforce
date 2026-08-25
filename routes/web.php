@@ -28,7 +28,9 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'admin'])->name('admin.'
     Route::get('assinaturas', [AdminSubscriptionController::class, 'index'])->name('subscriptions.index');
     Route::post('assinaturas/{subscription}/cancelar', [AdminSubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::get('produtos', [AdminProductController::class, 'index'])->name('products.index');
+    Route::post('produtos', [AdminProductController::class, 'store'])->name('products.store');
     Route::put('produtos/{product}', [AdminProductController::class, 'update'])->name('products.update');
+    Route::post('produtos/{product}/planos', [AdminProductController::class, 'storePlan'])->name('plans.store');
     Route::put('planos/{plan}', [AdminProductController::class, 'updatePlan'])->name('plans.update');
     Route::get('automacoes', [AdminAutomationController::class, 'index'])->name('automations.index');
     Route::patch('automacoes/alertas/{alert}/resolver', [AdminAutomationController::class, 'resolve'])->name('automations.resolve');

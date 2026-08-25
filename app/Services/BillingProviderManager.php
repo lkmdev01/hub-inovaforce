@@ -50,7 +50,7 @@ class BillingProviderManager
         }
     }
 
-    public function changePlan(Subscription $subscription, ProductPlan $plan): bool
+    public function changePlan(Subscription $subscription, ProductPlan $plan, int $seats): bool
     {
         $remoteId = $subscription->external_subscription_id;
 
@@ -58,7 +58,7 @@ class BillingProviderManager
             return false;
         }
 
-        $this->asaas->changePlan($remoteId, $plan->loadMissing('product'));
+        $this->asaas->changePlan($remoteId, $plan->loadMissing('product'), $seats);
 
         return true;
     }

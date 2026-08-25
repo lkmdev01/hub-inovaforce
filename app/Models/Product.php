@@ -41,8 +41,8 @@ class Product extends Model
     public function plans(): HasMany
     {
         return $this->hasMany(ProductPlan::class)
-            ->orderByRaw("CASE name WHEN 'Essencial' THEN 1 WHEN 'Profissional' THEN 2 WHEN 'Enterprise' THEN 3 ELSE 4 END")
-            ->orderBy('billing_cycle');
+            ->orderBy('price')
+            ->orderBy('name');
     }
 
     protected function casts(): array

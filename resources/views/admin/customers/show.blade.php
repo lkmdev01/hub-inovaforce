@@ -25,7 +25,7 @@
             <div class="portal-card p-5"><span class="portal-kicker">Assinaturas</span><p class="mt-5 text-3xl font-semibold">{{ $team->subscriptions->count() }}</p><p class="mt-1 text-sm text-zinc-500">{{ $team->subscriptions->whereIn('status', ['active', 'trialing'])->count() }} ativa(s)</p></div>
             <div class="portal-card p-5"><span class="portal-kicker">Acessos</span><p class="mt-5 text-3xl font-semibold">{{ $team->members->count() }}</p><p class="mt-1 text-sm text-zinc-500">usuários na empresa</p></div>
             <div class="portal-card p-5"><span class="portal-kicker">Faturas</span><p class="mt-5 text-3xl font-semibold">{{ $team->invoices->count() }}</p><p class="mt-1 text-sm text-zinc-500">{{ $team->invoices->whereIn('status', ['open', 'overdue'])->count() }} em aberto</p></div>
-            <div class="portal-card p-5"><span class="portal-kicker">Mensalidade</span><p class="mt-5 text-3xl font-semibold">R$ {{ number_format($team->subscriptions->whereIn('status', ['active', 'trialing'])->sum(fn ($item) => $item->billing_cycle === 'yearly' ? $item->amount / 12 : $item->amount), 2, ',', '.') }}</p><p class="mt-1 text-sm text-zinc-500">valor mensal estimado</p></div>
+            <div class="portal-card p-5"><span class="portal-kicker">Mensalidade</span><p class="mt-5 text-3xl font-semibold">R$ {{ number_format($team->subscriptions->whereIn('status', ['active', 'trialing'])->sum(fn ($item) => $item->monthlyEquivalentAmount()), 2, ',', '.') }}</p><p class="mt-1 text-sm text-zinc-500">valor mensal estimado</p></div>
         </div>
 
         <div class="grid gap-6 xl:grid-cols-[.8fr_1.2fr]">
@@ -57,7 +57,7 @@
                     @forelse ($team->subscriptions as $subscription)
                         <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
                             <span class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">{{ str($subscription->product->name)->substr(0, 2)->upper() }}</span>
-                            <div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><strong>{{ $subscription->product->name }}</strong><x-portal-status :status="$subscription->status" /></div><p class="mt-1 text-sm text-zinc-500">{{ $subscription->plan_name }} · {{ $subscription->seats }} acesso(s) · {{ $subscription->billing_cycle === 'yearly' ? 'Anual' : 'Mensal' }}</p></div>
+                            <div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><strong>{{ $subscription->product->name }}</strong><x-portal-status :status="$subscription->status" /></div><p class="mt-1 text-sm text-zinc-500">{{ $subscription->plan_name }} · {{ $subscription->seats }} acesso(s) · {{ App\Models\ProductPlan::CYCLES[$subscription->billing_cycle] ?? $subscription->billing_cycle }}</p></div>
                             <div class="text-left sm:text-right"><strong>R$ {{ number_format($subscription->amount, 2, ',', '.') }}</strong><p class="text-xs text-zinc-500">Renovação {{ $subscription->renews_at?->format('d/m/Y') ?? 'não definida' }}</p></div>
                         </div>
                     @empty

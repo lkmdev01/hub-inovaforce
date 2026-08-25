@@ -3,7 +3,7 @@
 
     @php
         $activeSubscriptions = $subscriptions->whereIn('status', ['active', 'trialing']);
-        $monthlyTotal = $activeSubscriptions->sum(fn ($subscription) => $subscription->billing_cycle === 'yearly' ? $subscription->amount / 12 : $subscription->amount);
+        $monthlyTotal = $activeSubscriptions->sum(fn ($subscription) => $subscription->monthlyEquivalentAmount());
         $openInvoices = $invoices->whereIn('status', ['open', 'overdue']);
     @endphp
 
@@ -72,7 +72,7 @@
                             </div>
                             <div class="hidden text-right sm:block">
                                 <p class="font-semibold">R$ {{ number_format($subscription->amount, 2, ',', '.') }}</p>
-                                <p class="text-xs text-zinc-500">/{{ $subscription->billing_cycle === 'yearly' ? 'ano' : 'mês' }}</p>
+                                    <p class="text-xs text-zinc-500">/{{ mb_strtolower(App\Models\ProductPlan::CYCLES[$subscription->billing_cycle] ?? $subscription->billing_cycle) }}</p>
                             </div>
                         </div>
                     @empty

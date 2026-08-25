@@ -51,7 +51,7 @@ class AsaasClient
 
         $returnUrl = route('subscriptions.index', ['current_team' => $customer->team]);
         $checkout = $this->post('/checkouts', [
-            'billingTypes' => ['CREDIT_CARD'],
+            'billingTypes' => [$plan->billing_type],
             'chargeTypes' => ['RECURRENT'],
             'minutesToExpire' => 60,
             'externalReference' => 'hub-subscription-'.$subscription->id,
@@ -63,12 +63,12 @@ class AsaasClient
             'items' => [[
                 'name' => $plan->product->name.' — '.$plan->name,
                 'description' => $plan->product->description,
-                'quantity' => 1,
+                'quantity' => $plan->pricing_model === 'per_seat' ? $subscription->seats : 1,
                 'value' => (float) $plan->price,
             ]],
             'customer' => $customer->external_customer_id,
             'subscription' => [
-                'cycle' => $plan->billing_cycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
+                'cycle' => strtoupper($plan->billing_cycle),
                 'nextDueDate' => now()->format('Y-m-d H:i:s'),
             ],
         ]);
@@ -97,11 +97,12 @@ class AsaasClient
     }
 
     /** @return array<string, mixed> */
-    public function changePlan(string $subscriptionId, ProductPlan $plan): array
+    public function changePlan(string $subscriptionId, ProductPlan $plan, int $seats): array
     {
         return $this->put('/subscriptions/'.$subscriptionId, [
-            'value' => (float) $plan->price,
-            'cycle' => $plan->billing_cycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
+            'billingType' => $plan->billing_type,
+            'value' => $plan->totalForSeats($seats),
+            'cycle' => strtoupper($plan->billing_cycle),
             'description' => $plan->product->name.' — '.$plan->name,
             'externalReference' => 'hub-plan-'.$plan->id,
             'updatePendingPayments' => false,

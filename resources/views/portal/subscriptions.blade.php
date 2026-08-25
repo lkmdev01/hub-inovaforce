@@ -36,7 +36,7 @@
                         </div>
 
                         @if ($subscription->pendingPlan)
-                            <p class="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">Mudança para {{ $subscription->pendingPlan->name }} agendada para o próximo ciclo.</p>
+                            <p class="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">Mudança para {{ $subscription->pendingPlan->name }}{{ $subscription->pending_seats ? ' com '.$subscription->pending_seats.' acesso(s)' : '' }} agendada para o próximo ciclo.</p>
                         @endif
 
                         @if ($subscription->access_status === 'suspended')
@@ -44,7 +44,7 @@
                         @endif
 
                         <div class="mt-5 flex items-end justify-between gap-3">
-                            <div><p class="text-2xl font-semibold">R$ {{ number_format($subscription->amount, 2, ',', '.') }}</p><p class="text-xs text-zinc-500">por {{ $subscription->billing_cycle === 'yearly' ? 'ano' : 'mês' }}</p></div>
+                            <div><p class="text-2xl font-semibold">R$ {{ number_format($subscription->amount, 2, ',', '.') }}</p><p class="text-xs text-zinc-500">cobrança {{ mb_strtolower(App\Models\ProductPlan::CYCLES[$subscription->billing_cycle] ?? $subscription->billing_cycle) }}</p></div>
                             @if ($subscription->status === 'pending' && $subscription->checkout_url)
                                 <a href="{{ $subscription->checkout_url }}" class="rounded-xl bg-violet-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-violet-500">Concluir pagamento</a>
                             @endif
@@ -61,7 +61,7 @@
                             <form method="POST" action="{{ route('subscriptions.update', ['subscription' => $subscription]) }}" class="grid gap-4 sm:grid-cols-3">
                                 @csrf
                                 @method('PATCH')
-                                <label class="grid gap-1.5 text-sm sm:col-span-2"><span class="font-medium">Plano e ciclo</span><select name="product_plan_id" class="rounded-xl border-zinc-300 bg-white text-sm dark:border-zinc-700 dark:bg-zinc-900">@foreach ($subscription->product->plans as $plan)<option value="{{ $plan->id }}" @selected($subscription->product_plan_id === $plan->id)>{{ $plan->name }} · {{ $plan->billing_cycle === 'yearly' ? 'Anual' : 'Mensal' }} · R$ {{ number_format($plan->price, 2, ',', '.') }}</option>@endforeach</select></label>
+                                <label class="grid gap-1.5 text-sm sm:col-span-2"><span class="font-medium">Plano e ciclo</span><select name="product_plan_id" class="rounded-xl border-zinc-300 bg-white text-sm dark:border-zinc-700 dark:bg-zinc-900">@foreach ($subscription->product->plans->where('status', 'active') as $plan)<option value="{{ $plan->id }}" @selected($subscription->product_plan_id === $plan->id)>{{ $plan->name }} · {{ App\Models\ProductPlan::CYCLES[$plan->billing_cycle] ?? $plan->billing_cycle }} · R$ {{ number_format($plan->price, 2, ',', '.') }}{{ $plan->pricing_model === 'per_seat' ? '/licença' : '' }}</option>@endforeach</select></label>
                                 <label class="grid gap-1.5 text-sm"><span class="font-medium">Usuários</span><input name="seats" type="number" min="1" max="500" value="{{ $subscription->seats }}" class="rounded-xl border-zinc-300 bg-white text-sm dark:border-zinc-700 dark:bg-zinc-900"></label>
                                 <div class="sm:col-span-3"><button class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">Salvar alterações</button></div>
                             </form>

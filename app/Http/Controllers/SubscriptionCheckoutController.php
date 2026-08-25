@@ -6,14 +6,29 @@ use App\Models\ProductPlan;
 use App\Models\Team;
 use App\Services\BillingProviderManager;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use RuntimeException;
 
 class SubscriptionCheckoutController extends Controller
 {
-    public function store(Team $current_team, ProductPlan $plan, BillingProviderManager $billing): RedirectResponse
+    public function store(Request $request, Team $current_team, ProductPlan $plan, BillingProviderManager $billing): RedirectResponse
     {
         $plan->load('product');
         $customer = $current_team->billingCustomer;
+
+        if ($plan->status !== 'active' || $plan->product->status !== 'active') {
+            return back()->with('error', 'Este plano não está disponível para novas contratações.');
+        }
+
+        $data = $request->validate([
+            'seats' => [
+                'required',
+                'integer',
+                'min:'.$plan->minimum_seats,
+                'max:'.($plan->maximum_seats ?? 500),
+            ],
+        ]);
+        $seats = (int) $data['seats'];
 
         if (! $customer || blank($customer->tax_id)) {
             return redirect()->route('customer.show', ['current_team' => $current_team])
@@ -53,8 +68,8 @@ class SubscriptionCheckoutController extends Controller
             'plan_name' => $plan->name,
             'status' => 'pending',
             'billing_cycle' => $plan->billing_cycle,
-            'amount' => $plan->price,
-            'seats' => 1,
+            'amount' => $plan->totalForSeats($seats),
+            'seats' => $seats,
             'billing_provider' => $billing->provider(),
         ]);
 
