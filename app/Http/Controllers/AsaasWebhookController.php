@@ -31,9 +31,9 @@ class AsaasWebhookController extends Controller
     }
 
     /** @param array<string, mixed> $payload */
-    public function processPayload(array $payload, string $eventId, string $eventName): void
+    public function processPayload(array $payload, string $eventId, string $eventName, bool $dispatchAutomations = true): void
     {
-        $result = DB::transaction(function () use ($payload, $eventId, $eventName): array {
+        $result = DB::transaction(function () use ($payload, $eventId, $eventName, $dispatchAutomations): array {
             $webhook = WebhookEvent::query()->firstOrCreate(
                 ['provider' => 'asaas', 'external_id' => $eventId],
                 ['event' => $eventName, 'payload' => $payload, 'processed_at' => now()],
@@ -52,13 +52,14 @@ class AsaasWebhookController extends Controller
 
             $webhook->update([
                 'subscription_id' => $subscription?->id,
-                'automation_status' => 'pending',
+                'automation_status' => $dispatchAutomations ? 'pending' : 'completed',
+                'automation_completed_at' => $dispatchAutomations ? null : now(),
             ]);
 
             return ['processed' => true, 'webhook_id' => $webhook->id];
         });
 
-        if ($result['processed']) {
+        if ($result['processed'] && $dispatchAutomations) {
             ProcessAsaasWebhookAutomation::dispatch($result['webhook_id'])->afterCommit();
         }
     }

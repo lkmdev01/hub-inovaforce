@@ -36,7 +36,7 @@ O endpoint trata os eventos de checkout, pagamento e assinatura, incluindo:
 
 Os eventos são gravados de forma idempotente pelo identificador enviado pelo Asaas e as automações são processadas em fila, com cinco tentativas. Falhas podem ser reprocessadas em **Administração > Automações**.
 
-Além do webhook, o Hub consulta de hora em hora as cobranças das assinaturas para recuperar eventos eventualmente perdidos.
+Além do webhook, o Hub consulta de hora em hora as cobranças das assinaturas para recuperar eventos eventualmente perdidos. Essa consulta corrige estados e faturas silenciosamente, sem reenviar comunicações históricas.
 
 ## Produção
 

@@ -40,7 +40,7 @@ class ReconcileAsaas extends Command
 
                             $event = $this->eventForStatus((string) $payment['status']);
                             $eventId = 'reconcile-'.(string) $payment['id'].'-'.strtolower((string) $payment['status']);
-                            $webhooks->processPayload(['id' => $eventId, 'event' => $event, 'payment' => $payment], $eventId, $event);
+                            $webhooks->processPayload(['id' => $eventId, 'event' => $event, 'payment' => $payment], $eventId, $event, dispatchAutomations: false);
                             $processed++;
                         }
                     }
