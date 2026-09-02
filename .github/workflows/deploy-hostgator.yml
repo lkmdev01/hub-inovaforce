@@ -73,10 +73,28 @@ jobs:
         env:
           SSH_HOST: ${{ secrets.HOSTGATOR_SSH_HOST }}
         run: |
+          set -Eeuo pipefail
           test -n "$SSH_HOST"
-          scp -P 2222 -i "$HOME/.ssh/id_hostgator" \
-            deploy-assets.tar.gz \
-            "lukasm44@$SSH_HOST:/home1/lukasm44/repositories/hub-inovaforce/storage/app/deploy-assets.tar.gz"
+
+          for attempt in 1 2 3; do
+            if scp -P 2222 \
+              -o ConnectTimeout=30 \
+              -o ServerAliveInterval=15 \
+              -o ServerAliveCountMax=3 \
+              -i "$HOME/.ssh/id_hostgator" \
+              deploy-assets.tar.gz \
+              "lukasm44@$SSH_HOST:/home1/lukasm44/repositories/hub-inovaforce/storage/app/deploy-assets.tar.gz"; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Falha ao enviar os arquivos apos 3 tentativas."
+              exit 1
+            fi
+
+            echo "Conexao interrompida. Nova tentativa em $((attempt * 10)) segundos."
+            sleep $((attempt * 10))
+          done
 
       - name: Deploy application
         env:
