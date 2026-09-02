@@ -7,12 +7,18 @@
                 <h1 class="text-3xl font-semibold tracking-tight">{{ $team->name }}</h1>
                 <p class="mt-2 text-zinc-500">Ficha administrativa e histórico do cliente.</p>
             </div>
-            @if ($customer)
-                <form method="POST" action="{{ route('admin.customers.sync', $team) }}">
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <form method="POST" action="{{ route('admin.customers.preview.start', $team) }}">
                     @csrf
-                    <button class="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800">Sincronizar com Asaas</button>
+                    <button class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500 sm:w-auto"><flux:icon.eye class="size-4" />Visualizar como cliente</button>
                 </form>
-            @endif
+                @if ($customer)
+                    <form method="POST" action="{{ route('admin.customers.sync', $team) }}">
+                        @csrf
+                        <button class="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold shadow-sm transition hover:bg-zinc-50 sm:w-auto dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800">Sincronizar com Asaas</button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         @foreach (['success', 'warning', 'error'] as $message)

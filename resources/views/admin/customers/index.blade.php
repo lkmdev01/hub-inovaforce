@@ -46,7 +46,12 @@
                                 <td class="px-5 py-4">{{ $customer->team->members->count() }}</td>
                                 <td class="px-5 py-4">{{ $customer->team->subscriptions_count }}</td>
                                 <td class="px-5 py-4"><span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $customer->synced_at ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' }}">{{ $customer->synced_at ? 'Sincronizado' : 'Pendente' }}</span></td>
-                                <td class="px-5 py-4 text-right"><a href="{{ route('admin.customers.show', $customer->team) }}" wire:navigate class="font-semibold text-violet-600 hover:text-violet-500">Abrir</a></td>
+                                <td class="px-5 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-3">
+                                        <form method="POST" action="{{ route('admin.customers.preview.start', $customer->team) }}">@csrf<button class="font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white">Visualizar portal</button></form>
+                                        <a href="{{ route('admin.customers.show', $customer->team) }}" wire:navigate class="font-semibold text-violet-600 hover:text-violet-500">Abrir</a>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr><td colspan="7" class="px-5 py-10 text-center text-zinc-500">Nenhum cliente encontrado.</td></tr>

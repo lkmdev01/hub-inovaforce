@@ -1,4 +1,7 @@
 <x-layouts::app :title="__('Dados do cliente')">
+    @php
+        $isClientPreview = request()->attributes->has('clientPreviewTeam');
+    @endphp
     <div class="mx-auto flex w-full max-w-4xl flex-col gap-7">
         <div>
             <p class="mb-1 text-sm font-medium text-violet-600">Cadastro</p>
@@ -23,6 +26,7 @@
             <form method="POST" action="{{ route('customer.update') }}" class="grid gap-5 p-6 sm:grid-cols-2">
                 @csrf
                 @method('PUT')
+                <fieldset class="contents" @disabled($isClientPreview)>
                 <label class="grid gap-1.5 text-sm sm:col-span-2"><span class="font-medium">Nome ou razão social</span><input name="name" value="{{ old('name', $customer->name) }}" required class="rounded-xl border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">@error('name')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
                 <label class="grid gap-1.5 text-sm"><span class="font-medium">E-mail financeiro</span><input name="email" type="email" value="{{ old('email', $customer->email) }}" required class="rounded-xl border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">@error('email')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
                 <label class="grid gap-1.5 text-sm"><span class="font-medium">CPF ou CNPJ</span><input name="tax_id" value="{{ old('tax_id', $customer->tax_id) }}" placeholder="00.000.000/0001-00" required class="rounded-xl border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">@error('tax_id')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
@@ -34,9 +38,14 @@
                 <label class="grid gap-1.5 text-sm"><span class="font-medium">Bairro</span><input name="province" value="{{ old('province', $customer->province) }}" class="rounded-xl border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">@error('province')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
                 <label class="grid gap-1.5 text-sm"><span class="font-medium">Inscrição municipal</span><input name="municipal_inscription" value="{{ old('municipal_inscription', $customer->municipal_inscription) }}" class="rounded-xl border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">@error('municipal_inscription')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
                 <label class="grid gap-1.5 text-sm"><span class="font-medium">Inscrição estadual</span><input name="state_inscription" value="{{ old('state_inscription', $customer->state_inscription) }}" class="rounded-xl border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">@error('state_inscription')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
+                </fieldset>
                 <div class="flex items-center justify-between gap-4 border-t border-zinc-100 pt-5 sm:col-span-2 dark:border-zinc-800">
                     <p class="text-xs text-zinc-500">{{ $billingProvider->configured() ? 'Os dados serão sincronizados com o '.$billingProvider->label().'.' : 'Integração em modo local até configurar a chave.' }}</p>
-                    <button class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">Salvar cliente</button>
+                    @if ($isClientPreview)
+                        <span class="rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-500 dark:bg-zinc-800">Somente leitura</span>
+                    @else
+                        <button class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">Salvar cliente</button>
+                    @endif
                 </div>
             </form>
         </div>

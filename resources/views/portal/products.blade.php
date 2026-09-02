@@ -1,4 +1,7 @@
 <x-layouts::app :title="__('Produtos')">
+    @php
+        $isClientPreview = request()->attributes->has('clientPreviewTeam');
+    @endphp
     <div class="mx-auto flex w-full max-w-7xl flex-col gap-7">
         <div>
             <p class="mb-1 text-sm font-medium text-violet-600">Ecossistema Inovaforce</p>
@@ -27,7 +30,7 @@
                     <div class="mt-6 border-t border-zinc-100 pt-5 dark:border-zinc-800">
                         @if ($subscribedProductIds->contains($product->id))
                             <a href="{{ route('subscriptions.index') }}" wire:navigate class="flex h-10 items-center justify-center rounded-xl border border-zinc-200 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">Gerenciar assinatura</a>
-                        @elseif ($product->plans->isNotEmpty())
+                        @elseif ($product->plans->isNotEmpty() && ! $isClientPreview)
                             <form method="POST" action="{{ route('subscriptions.store', ['plan' => $product->plans->first()]) }}" class="grid gap-3">
                                 @csrf
                                 <label class="grid gap-1.5 text-xs font-semibold text-zinc-500">Escolha o plano
@@ -42,8 +45,15 @@
                                 </label>
                                 <button class="flex h-10 items-center justify-center rounded-xl bg-violet-600 text-sm font-semibold text-white hover:bg-violet-500" @disabled($product->plans->isEmpty())>Assinar agora</button>
                             </form>
-                        @else
+                        @elseif ($product->plans->isEmpty())
                             <p class="rounded-xl bg-zinc-100 px-3 py-2 text-center text-sm font-medium text-zinc-500">Planos em breve</p>
+                        @else
+                            <div class="space-y-2">
+                                @foreach ($product->plans as $plan)
+                                    <div class="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-800/60"><span class="font-medium">{{ $plan->name }}</span><span class="text-zinc-500">R$ {{ number_format($plan->price, 2, ',', '.') }}</span></div>
+                                @endforeach
+                                <p class="text-center text-xs font-medium text-zinc-500">Contratação desativada durante a visualização.</p>
+                            </div>
                         @endif
                     </div>
                 </article>

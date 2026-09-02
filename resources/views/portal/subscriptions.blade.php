@@ -1,4 +1,7 @@
 <x-layouts::app :title="__('Assinaturas')">
+    @php
+        $isClientPreview = request()->attributes->has('clientPreviewTeam');
+    @endphp
     <div class="mx-auto flex w-full max-w-7xl flex-col gap-7">
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -6,7 +9,7 @@
                 <h1 class="text-3xl font-semibold tracking-tight">Assinaturas</h1>
                 <p class="mt-2 text-zinc-500">Controle planos, usuários, ciclos de cobrança e renovações.</p>
             </div>
-            <a href="{{ route('products.index') }}" wire:navigate class="inline-flex h-10 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500">Adicionar produto</a>
+            <a href="{{ route('products.index') }}" wire:navigate class="inline-flex h-10 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500">{{ $isClientPreview ? 'Ver produtos' : 'Adicionar produto' }}</a>
         </div>
 
         @foreach (['success', 'warning', 'error'] as $type)
@@ -49,13 +52,13 @@
 
                         <div class="mt-5 flex items-end justify-between gap-3">
                             <div><p class="text-2xl font-semibold">R$ {{ number_format($subscription->amount, 2, ',', '.') }}</p><p class="text-xs text-zinc-500">cobrança {{ mb_strtolower(App\Models\ProductPlan::CYCLES[$subscription->billing_cycle] ?? $subscription->billing_cycle) }}</p></div>
-                            @if ($subscription->status === 'pending' && $subscription->checkout_url)
+                            @if (! $isClientPreview && $subscription->status === 'pending' && $subscription->checkout_url)
                                 <a href="{{ $subscription->checkout_url }}" class="rounded-xl bg-violet-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-violet-500">Concluir pagamento</a>
                             @endif
                         </div>
                     </div>
 
-                    @if (in_array($subscription->status, ['active', 'trialing', 'past_due']))
+                    @if (! $isClientPreview && in_array($subscription->status, ['active', 'trialing', 'past_due']))
                     <details class="group border-t border-zinc-200 dark:border-zinc-800">
                         <summary class="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
                             Gerenciar assinatura
@@ -75,6 +78,8 @@
                             </form>
                         </div>
                     </details>
+                    @elseif ($isClientPreview && in_array($subscription->status, ['active', 'trialing', 'past_due']))
+                        <div class="border-t border-zinc-200 px-6 py-4 text-sm font-medium text-zinc-500 dark:border-zinc-800">Gerenciamento desativado durante a visualização.</div>
                     @endif
                 </article>
             @empty

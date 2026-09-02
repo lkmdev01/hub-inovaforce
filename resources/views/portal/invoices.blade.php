@@ -1,4 +1,7 @@
 <x-layouts::app :title="__('Faturas')">
+    @php
+        $isClientPreview = request()->attributes->has('clientPreviewTeam');
+    @endphp
     <div class="mx-auto flex w-full max-w-7xl flex-col gap-7">
         <div>
             <p class="mb-1 text-sm font-medium text-violet-600">Financeiro</p>
@@ -23,7 +26,7 @@
                                 <td class="px-5 py-4"><x-portal-status :status="$invoice->status" /></td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex items-center justify-end gap-3">
-                                        @if ($invoice->payment_url && in_array($invoice->status, ['open', 'overdue'], true))
+                                        @if (! $isClientPreview && $invoice->payment_url && in_array($invoice->status, ['open', 'overdue'], true))
                                             <a href="{{ $invoice->payment_url }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-emerald-600 hover:text-emerald-500">Pagar</a>
                                         @endif
                                         <a href="{{ route('invoices.show', ['invoice' => $invoice]) }}" class="font-semibold text-violet-600 hover:text-violet-500">Ver fatura</a>

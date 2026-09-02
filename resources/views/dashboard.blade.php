@@ -1,5 +1,11 @@
 <x-layouts::app :title="__('Visão geral')">
-    <livewire:pages::teams.pending-invitations-modal />
+    @php
+        $isClientPreview = request()->attributes->has('clientPreviewTeam');
+    @endphp
+
+    @unless ($isClientPreview)
+        <livewire:pages::teams.pending-invitations-modal />
+    @endunless
 
     @php
         $activeSubscriptions = $subscriptions->whereIn('status', ['active', 'trialing']);
@@ -11,7 +17,7 @@
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
                 <p class="mb-1 text-sm font-medium text-violet-600 dark:text-violet-400">{{ now()->translatedFormat('l, d \d\e F') }}</p>
-                <h1 class="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">Olá, {{ str(auth()->user()->name)->before(' ') }}.</h1>
+                <h1 class="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-white">{{ $isClientPreview ? 'Portal de '.$current_team->name : 'Olá, '.str(auth()->user()->name)->before(' ').'.' }}</h1>
                 <p class="mt-2 text-zinc-500 dark:text-zinc-400">Aqui está o resumo dos serviços da {{ $current_team->name }}.</p>
             </div>
             <a href="{{ route('products.index') }}" wire:navigate class="inline-flex h-10 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500">
@@ -97,9 +103,15 @@
                         <span class="flex-1"><strong class="block text-sm">Ajustar seus planos</strong><span class="text-xs text-zinc-500">Plano, ciclo e usuários</span></span>
                         <flux:icon.chevron-right class="size-4 text-zinc-400" />
                     </a>
-                    <a href="{{ route('teams.edit', $current_team) }}" wire:navigate class="portal-action">
-                        <span class="portal-icon bg-amber-100 text-amber-600 dark:bg-amber-500/10"><flux:icon.users class="size-5" /></span>
-                        <span class="flex-1"><strong class="block text-sm">Gerenciar equipe</strong><span class="text-xs text-zinc-500">Membros e permissões</span></span>
+                    <a href="{{ $isClientPreview ? route('customer.show') : route('teams.edit', $current_team) }}" wire:navigate class="portal-action">
+                        <span class="portal-icon bg-amber-100 text-amber-600 dark:bg-amber-500/10">
+                            @if ($isClientPreview)
+                                <flux:icon.building-office class="size-5" />
+                            @else
+                                <flux:icon.users class="size-5" />
+                            @endif
+                        </span>
+                        <span class="flex-1"><strong class="block text-sm">{{ $isClientPreview ? 'Consultar cadastro' : 'Gerenciar equipe' }}</strong><span class="text-xs text-zinc-500">{{ $isClientPreview ? 'Dados da empresa em modo leitura' : 'Membros e permissões' }}</span></span>
                         <flux:icon.chevron-right class="size-4 text-zinc-400" />
                     </a>
                 </div>

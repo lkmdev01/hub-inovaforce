@@ -5,12 +5,16 @@ namespace App\Http\Middleware;
 use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\ClientPreview;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureTeamMembership
 {
+    public function __construct(private ClientPreview $clientPreview) {}
+
     /**
      * Handle an incoming request.
      *
@@ -19,8 +23,24 @@ class EnsureTeamMembership
     public function handle(Request $request, Closure $next, ?string $minimumRole = null): Response
     {
         [$user, $team] = [$request->user(), $this->team($request)];
+        $previewTeam = $this->clientPreview->team($request);
+        $isClientPreview = $previewTeam?->is($team) ?? false;
 
-        abort_if(! $user || ! $team || ! $user->belongsToTeam($team), 403);
+        abort_if(! $user || ! $team || (! $user->belongsToTeam($team) && ! $isClientPreview), 403);
+
+        if ($previewTeam && ! $isClientPreview) {
+            abort(403, 'Encerre a visualização atual antes de acessar outra empresa.');
+        }
+
+        if ($isClientPreview) {
+            $request->attributes->set('clientPreviewTeam', $team);
+            URL::defaults([
+                'current_team' => $team->slug,
+                'team' => $team->slug,
+            ]);
+
+            return $next($request);
+        }
 
         $this->ensureTeamMemberHasRequiredRole($user, $team, $minimumRole);
 

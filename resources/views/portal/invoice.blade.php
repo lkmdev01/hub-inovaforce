@@ -1,9 +1,12 @@
 <x-layouts::app :title="$invoice->number">
+    @php
+        $isClientPreview = request()->attributes->has('clientPreviewTeam');
+    @endphp
     <div class="mx-auto w-full max-w-4xl">
         <div class="mb-5 flex items-center justify-between print:hidden">
             <a href="{{ route('invoices.index') }}" wire:navigate class="text-sm font-semibold text-zinc-500 hover:text-zinc-900">← Voltar para faturas</a>
             <div class="flex items-center gap-3">
-                @if ($invoice->payment_url && in_array($invoice->status, ['open', 'overdue'], true))
+                @if (! $isClientPreview && $invoice->payment_url && in_array($invoice->status, ['open', 'overdue'], true))
                     <a href="{{ $invoice->payment_url }}" target="_blank" rel="noopener noreferrer" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">Pagar no Asaas</a>
                 @endif
                 @if ($invoice->receipt_url)
@@ -20,7 +23,7 @@
             </header>
 
             <div class="grid gap-8 py-8 sm:grid-cols-2">
-                <div><p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Faturado para</p><p class="mt-2 font-semibold">{{ $current_team->name }}</p><p class="mt-1 text-sm text-zinc-500">{{ auth()->user()->email }}</p></div>
+                <div><p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Faturado para</p><p class="mt-2 font-semibold">{{ $current_team->name }}</p><p class="mt-1 text-sm text-zinc-500">{{ $current_team->billingCustomer?->email ?? auth()->user()->email }}</p></div>
                 <div class="grid grid-cols-2 gap-4 sm:text-right"><div><p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Emissão</p><p class="mt-2 text-sm font-medium">{{ $invoice->issued_at->format('d/m/Y') }}</p></div><div><p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Vencimento</p><p class="mt-2 text-sm font-medium">{{ $invoice->due_at->format('d/m/Y') }}</p></div></div>
             </div>
 

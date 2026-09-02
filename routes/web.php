@@ -7,11 +7,13 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Http\Controllers\Admin\AdminProductController;
 use App\Http\Controllers\Admin\AdminSubscriptionController;
+use App\Http\Controllers\Admin\ClientPreviewController;
 use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\BillingCustomerController;
 use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\SubscriptionCheckoutController;
+use App\Http\Middleware\EnsureClientPreviewIsReadOnly;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,8 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'admin', 'audit'])->name
     Route::get('clientes', [AdminCustomerController::class, 'index'])->name('customers.index');
     Route::post('clientes', [AdminCustomerController::class, 'store'])->name('customers.store');
     Route::get('clientes/{team}', [AdminCustomerController::class, 'show'])->name('customers.show');
+    Route::post('clientes/{team}/visualizar', [ClientPreviewController::class, 'start'])->name('customers.preview.start');
+    Route::post('visualizacao-cliente/encerrar', [ClientPreviewController::class, 'stop'])->name('customers.preview.stop');
     Route::post('clientes/{team}/sincronizar', [AdminCustomerController::class, 'sync'])->name('customers.sync');
     Route::post('clientes/{team}/cobrancas', [AdminPaymentController::class, 'store'])->name('payments.store');
     Route::post('cobrancas/{invoice}/estornar', [AdminPaymentController::class, 'refund'])->name('payments.refund');
@@ -50,7 +54,7 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'admin', 'audit'])->name
 });
 
 Route::prefix('{current_team}')
-    ->middleware(['auth', 'verified', 'terms', EnsureTeamMembership::class, 'audit'])
+    ->middleware(['auth', 'verified', 'terms', EnsureTeamMembership::class, EnsureClientPreviewIsReadOnly::class, 'audit'])
     ->group(function () {
         Route::get('dashboard', [BillingPortalController::class, 'dashboard'])->name('dashboard');
         Route::get('assinaturas', [BillingPortalController::class, 'subscriptions'])->name('subscriptions.index');
