@@ -29,6 +29,7 @@ class CreateNewUser implements CreatesNewUsers
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
+            'terms' => ['accepted'],
         ])->validate();
 
         return DB::transaction(function () use ($input) {
@@ -36,6 +37,7 @@ class CreateNewUser implements CreatesNewUsers
                 'name' => $input['name'],
                 'email' => $input['email'],
                 'password' => $input['password'],
+                'accepted_terms_at' => now(),
             ]);
 
             $this->createTeam->handle($user, $user->name."'s Team", isPersonal: true);

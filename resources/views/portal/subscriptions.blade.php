@@ -39,6 +39,10 @@
                             <p class="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">Mudança para {{ $subscription->pendingPlan->name }}{{ $subscription->pending_seats ? ' com '.$subscription->pending_seats.' acesso(s)' : '' }} agendada para o próximo ciclo.</p>
                         @endif
 
+                        @if ($subscription->cancel_at_period_end)
+                            <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Renovação cancelada. Seu acesso permanece ativo até {{ $subscription->renews_at?->format('d/m/Y') }}.</p>
+                        @endif
+
                         @if ($subscription->access_status === 'suspended')
                             <p class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">O acesso está temporariamente suspenso. Consulte as faturas em aberto para regularizar.</p>
                         @endif
@@ -67,7 +71,7 @@
                             </form>
                             <form method="POST" action="{{ route('subscriptions.toggle', ['subscription' => $subscription]) }}" class="mt-3">
                                 @csrf
-                                <button class="px-1 py-2 text-sm font-semibold text-red-600" @disabled($subscription->status === 'canceled')>{{ $subscription->status === 'canceled' ? 'Assinatura cancelada' : 'Cancelar assinatura agora' }}</button>
+                                <button class="px-1 py-2 text-sm font-semibold text-red-600" @disabled($subscription->cancel_at_period_end)>{{ $subscription->cancel_at_period_end ? 'Renovação já cancelada' : 'Cancelar ao fim do período' }}</button>
                             </form>
                         </div>
                     </details>

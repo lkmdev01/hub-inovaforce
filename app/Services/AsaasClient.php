@@ -28,6 +28,12 @@ class AsaasClient
             'email' => $customer->email,
             'mobilePhone' => $this->digits($customer->cellphone),
             'postalCode' => $this->digits($customer->zip_code),
+            'address' => $customer->address,
+            'addressNumber' => $customer->address_number,
+            'complement' => $customer->complement,
+            'province' => $customer->province,
+            'municipalInscription' => $customer->municipal_inscription,
+            'stateInscription' => $customer->state_inscription,
             'externalReference' => 'hub-team-'.$customer->team_id,
             'notificationDisabled' => false,
             'groupName' => $customer->group?->name,
@@ -94,6 +100,39 @@ class AsaasClient
     public function cancelCheckout(string $checkoutId): array
     {
         return $this->post('/checkouts/'.$checkoutId.'/cancel', []);
+    }
+
+    /** @param array{billingType: string, value: float, dueDate: string, description: string, externalReference: string} $data
+     * @return array<string, mixed>
+     */
+    public function createPayment(BillingCustomer $customer, array $data): array
+    {
+        if (! $customer->external_customer_id) {
+            throw new RuntimeException('O cliente ainda não foi sincronizado com o Asaas.');
+        }
+
+        return $this->post('/payments', ['customer' => $customer->external_customer_id, ...$data]);
+    }
+
+    /** @return array<string, mixed> */
+    public function refundPayment(string $paymentId, ?float $value, string $description): array
+    {
+        return $this->post('/payments/'.$paymentId.'/refund', array_filter([
+            'value' => $value,
+            'description' => $description,
+        ], fn (mixed $item) => $item !== null));
+    }
+
+    /** @return array<string, mixed> */
+    public function subscription(string $subscriptionId): array
+    {
+        return $this->get('/subscriptions/'.$subscriptionId);
+    }
+
+    /** @return array<string, mixed> */
+    public function subscriptionPayments(string $subscriptionId): array
+    {
+        return $this->get('/subscriptions/'.$subscriptionId.'/payments');
     }
 
     /** @return array<string, mixed> */
@@ -168,6 +207,14 @@ class AsaasClient
     private function post(string $path, array $payload): array
     {
         return $this->decode($this->request()->post($path, $payload));
+    }
+
+    /** @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    private function get(string $path, array $query = []): array
+    {
+        return $this->decode($this->request()->get($path, $query));
     }
 
     /** @param array<string, mixed> $payload

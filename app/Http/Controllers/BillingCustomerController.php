@@ -30,6 +30,12 @@ class BillingCustomerController extends Controller
             'tax_id' => ['required', 'string', 'max:20'],
             'cellphone' => ['required', 'string', 'max:30'],
             'zip_code' => ['nullable', 'string', 'max:10'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'address_number' => ['nullable', 'string', 'max:30'],
+            'complement' => ['nullable', 'string', 'max:255'],
+            'province' => ['nullable', 'string', 'max:255'],
+            'municipal_inscription' => ['nullable', 'string', 'max:50'],
+            'state_inscription' => ['nullable', 'string', 'max:50'],
         ]);
 
         $customer = $current_team->billingCustomer()->updateOrCreate([], $data);

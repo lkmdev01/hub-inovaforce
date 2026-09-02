@@ -38,9 +38,6 @@ class SoftwareAccessGateway
             ],
             'product' => ['id' => $product->id, 'slug' => $product->slug, 'name' => $product->name],
         ];
-        $body = json_encode($payload, JSON_THROW_ON_ERROR);
-        $signature = hash_hmac('sha256', $body, (string) $product->provisioning_webhook_secret);
-
         $log = CommunicationLog::query()->firstOrCreate(
             ['deduplication_key' => $eventId.'-software-'.$product->id],
             [
@@ -59,14 +56,33 @@ class SoftwareAccessGateway
             return;
         }
 
+        $this->deliver($log, $payload, $product->provisioning_webhook_url, (string) $product->provisioning_webhook_secret);
+    }
+
+    public function retry(CommunicationLog $log): void
+    {
+        $subscription = $log->subscription()->with('product')->firstOrFail();
+        $product = $subscription->product;
+        if (! $product->provisioning_webhook_url) {
+            throw new RuntimeException('A URL de liberação do produto não está configurada.');
+        }
+
+        $this->deliver($log, $log->contextData(), $product->provisioning_webhook_url, (string) $product->provisioning_webhook_secret);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function deliver(CommunicationLog $log, array $payload, string $url, string $secret): void
+    {
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $body, $secret);
         $response = Http::withHeaders([
             'X-Hub-Event' => 'subscription.access_updated',
             'X-Hub-Signature' => 'sha256='.$signature,
-        ])->acceptJson()->withBody($body, 'application/json')->timeout(15)->retry(2, 250)->post($product->provisioning_webhook_url);
+        ])->acceptJson()->withBody($body, 'application/json')->timeout(15)->retry(2, 250)->post($url);
 
         if ($response->failed()) {
             $log->update(['status' => 'failed', 'error_message' => 'O software recusou a atualização de acesso.']);
-            throw new RuntimeException('O webhook de acesso do software '.$product->name.' falhou.');
+            throw new RuntimeException('O webhook de acesso do software falhou.');
         }
 
         $log->update(['status' => 'sent', 'sent_at' => now()]);

@@ -62,6 +62,12 @@
                 viewable
             />
 
+            <label class="flex items-start gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+                <input type="checkbox" name="terms" value="1" required class="mt-1 rounded border-zinc-300 text-violet-600">
+                <span>Li e aceito os <a href="{{ route('legal.terms') }}" target="_blank" class="font-semibold text-violet-600">Termos de Uso</a> e a <a href="{{ route('legal.privacy') }}" target="_blank" class="font-semibold text-violet-600">Política de Privacidade</a>.</span>
+            </label>
+            @error('terms')<p class="-mt-4 text-sm text-red-600">Você precisa aceitar os termos para criar a conta.</p>@enderror
+
             <div class="flex items-center justify-end">
                 <flux:button type="submit" variant="primary" class="w-full" data-test="register-user-button">
                     {{ __('Create account') }}

@@ -10,7 +10,6 @@ use App\Models\Team;
 use App\Services\BillingProviderManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -128,34 +127,22 @@ class BillingPortalController extends Controller
             }
         }
 
+        if ($subscription->renews_at?->isFuture()) {
+            $subscription->update([
+                'cancel_at_period_end' => true,
+                'cancel_scheduled_at' => now(),
+                'access_reason' => 'customer_cancel_scheduled',
+            ]);
+
+            return back()->with('success', 'Renovação desativada. O acesso permanece até '.$subscription->renews_at->format('d/m/Y').'.');
+        }
+
         $subscription->update([
-            'status' => 'canceled',
-            'canceled_at' => now(),
-            'renews_at' => null,
-            'access_status' => 'revoked',
-            'access_reason' => 'customer_canceled',
-            'access_updated_at' => now(),
+            'status' => 'canceled', 'canceled_at' => now(), 'renews_at' => null,
+            'access_status' => 'revoked', 'access_reason' => 'customer_canceled',
+            'access_updated_at' => now(), 'cancel_at_period_end' => false,
         ]);
 
         return back()->with('success', 'Assinatura cancelada. O acesso foi encerrado imediatamente.');
-    }
-
-    public function issueInvoice(Team $current_team, Subscription $subscription): RedirectResponse
-    {
-        abort_unless($subscription->team_id === $current_team->id, 404);
-
-        $invoice = $current_team->invoices()->create([
-            'subscription_id' => $subscription->id,
-            'number' => 'INV-'.now()->format('Ym').'-'.Str::upper(Str::random(6)),
-            'status' => 'open',
-            'currency' => 'BRL',
-            'subtotal' => $subscription->amount,
-            'total' => $subscription->amount,
-            'issued_at' => today(),
-            'due_at' => today()->addDays(7),
-        ]);
-
-        return redirect()->route('invoices.show', ['current_team' => $current_team, 'invoice' => $invoice])
-            ->with('success', 'Fatura gerada com sucesso.');
     }
 }

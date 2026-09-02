@@ -48,6 +48,12 @@ class AdminCustomerController extends Controller
             'tax_id' => ['required', 'string', 'max:20'],
             'cellphone' => ['required', 'string', 'max:30'],
             'zip_code' => ['nullable', 'string', 'max:10'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'address_number' => ['nullable', 'string', 'max:30'],
+            'complement' => ['nullable', 'string', 'max:255'],
+            'province' => ['nullable', 'string', 'max:255'],
+            'municipal_inscription' => ['nullable', 'string', 'max:50'],
+            'state_inscription' => ['nullable', 'string', 'max:50'],
             'customer_group_id' => ['nullable', 'integer', 'exists:customer_groups,id'],
         ]);
 
@@ -65,6 +71,12 @@ class AdminCustomerController extends Controller
                 'tax_id' => $data['tax_id'],
                 'cellphone' => $data['cellphone'],
                 'zip_code' => $data['zip_code'],
+                'address' => $data['address'] ?? null,
+                'address_number' => $data['address_number'] ?? null,
+                'complement' => $data['complement'] ?? null,
+                'province' => $data['province'] ?? null,
+                'municipal_inscription' => $data['municipal_inscription'] ?? null,
+                'state_inscription' => $data['state_inscription'] ?? null,
                 'customer_group_id' => $data['customer_group_id'] ?? null,
             ]);
 

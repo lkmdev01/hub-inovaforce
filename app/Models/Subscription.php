@@ -29,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $checkout_url
  * @property Carbon|null $renews_at
  * @property Carbon|null $canceled_at
+ * @property bool $cancel_at_period_end
+ * @property Carbon|null $cancel_scheduled_at
  * @property Carbon|null $access_updated_at
  * @property Carbon|null $fiscal_configured_at
  * @property-read Team $team
@@ -36,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property-read ProductPlan|null $plan
  * @property-read ProductPlan|null $pendingPlan
  */
-#[Fillable(['team_id', 'product_id', 'product_plan_id', 'pending_product_plan_id', 'plan_name', 'status', 'access_status', 'access_reason', 'access_updated_at', 'fiscal_configured_at', 'billing_cycle', 'amount', 'seats', 'pending_seats', 'billing_provider', 'external_checkout_id', 'external_subscription_id', 'external_payment_id', 'renews_at', 'canceled_at', 'checkout_url'])]
+#[Fillable(['team_id', 'product_id', 'product_plan_id', 'pending_product_plan_id', 'plan_name', 'status', 'access_status', 'access_reason', 'access_updated_at', 'fiscal_configured_at', 'billing_cycle', 'amount', 'seats', 'pending_seats', 'billing_provider', 'external_checkout_id', 'external_subscription_id', 'external_payment_id', 'renews_at', 'canceled_at', 'cancel_at_period_end', 'cancel_scheduled_at', 'checkout_url'])]
 class Subscription extends Model
 {
     public function monthlyEquivalentAmount(): float
@@ -123,6 +125,8 @@ class Subscription extends Model
             'pending_seats' => 'integer',
             'renews_at' => 'datetime',
             'canceled_at' => 'datetime',
+            'cancel_at_period_end' => 'boolean',
+            'cancel_scheduled_at' => 'datetime',
             'access_updated_at' => 'datetime',
             'fiscal_configured_at' => 'datetime',
         ];

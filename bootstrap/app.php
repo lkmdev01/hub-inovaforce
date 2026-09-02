@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\AuditMutations;
 use App\Http\Middleware\EnsureAdministrator;
+use App\Http\Middleware\EnsureTermsAccepted;
 use App\Http\Middleware\SetTeamUrlDefaults;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => EnsureAdministrator::class,
+            'audit' => AuditMutations::class,
+            'terms' => EnsureTermsAccepted::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

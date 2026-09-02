@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessAsaasWebhookAutomation;
+use App\Models\FinancialEvent;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\WebhookEvent;
-use App\Services\BillingAutomationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -15,7 +16,7 @@ use Throwable;
 
 class AsaasWebhookController extends Controller
 {
-    public function __invoke(Request $request, BillingAutomationService $automations): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
         abort_unless($this->validToken($request), 401);
 
@@ -24,6 +25,14 @@ class AsaasWebhookController extends Controller
         $eventName = data_get($payload, 'event');
         abort_unless(is_string($eventId) && is_string($eventName), 422);
 
+        $this->processPayload($payload, $eventId, $eventName);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function processPayload(array $payload, string $eventId, string $eventName): void
+    {
         $result = DB::transaction(function () use ($payload, $eventId, $eventName): array {
             $webhook = WebhookEvent::query()->firstOrCreate(
                 ['provider' => 'asaas', 'external_id' => $eventId],
@@ -31,25 +40,27 @@ class AsaasWebhookController extends Controller
             );
 
             if (! $webhook->wasRecentlyCreated) {
-                return ['processed' => false, 'subscription_id' => null];
+                return ['processed' => false, 'webhook_id' => $webhook->id];
             }
 
             $subscription = $this->findSubscription($payload);
             if ($subscription) {
                 $this->applyEvent($subscription, $eventName, $payload);
+            } else {
+                $this->syncStandaloneInvoice($eventName, $payload);
             }
 
-            return ['processed' => true, 'subscription_id' => $subscription?->id];
+            $webhook->update([
+                'subscription_id' => $subscription?->id,
+                'automation_status' => 'pending',
+            ]);
+
+            return ['processed' => true, 'webhook_id' => $webhook->id];
         });
 
-        if ($result['processed'] && $result['subscription_id']) {
-            $subscription = Subscription::query()->find($result['subscription_id']);
-            if ($subscription) {
-                $automations->handle($subscription, $eventId, $eventName, $payload);
-            }
+        if ($result['processed']) {
+            ProcessAsaasWebhookAutomation::dispatch($result['webhook_id'])->afterCommit();
         }
-
-        return response()->json(['ok' => true]);
     }
 
     /** @param array<string, mixed> $payload */
@@ -229,6 +240,59 @@ class AsaasWebhookController extends Controller
             'DELETED' => 'canceled',
             default => 'open',
         };
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function syncStandaloneInvoice(string $eventName, array $payload): void
+    {
+        $payment = data_get($payload, 'payment', []);
+        $paymentId = $this->firstId($payload, ['payment.id']);
+        if (! is_array($payment) || ! $paymentId) {
+            return;
+        }
+
+        $invoice = Invoice::query()
+            ->whereNull('subscription_id')
+            ->where('billing_provider', 'asaas')
+            ->where('external_payment_id', $paymentId)
+            ->first();
+        if (! $invoice) {
+            return;
+        }
+
+        $status = match ($eventName) {
+            'PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED' => 'paid',
+            'PAYMENT_OVERDUE' => 'overdue',
+            'PAYMENT_REFUNDED' => 'refunded',
+            'PAYMENT_REFUND_IN_PROGRESS' => 'refund_pending',
+            'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE', 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL' => 'chargeback',
+            'PAYMENT_DELETED' => 'canceled',
+            default => $this->mapPaymentStatus((string) ($payment['status'] ?? 'PENDING')),
+        };
+
+        $invoice->update([
+            'status' => $status,
+            'paid_at' => $status === 'paid' ? ($this->date($payment['paymentDate'] ?? null) ?? now()) : $invoice->paid_at,
+            'refunded_at' => in_array($status, ['refunded', 'refund_pending'], true) ? now() : $invoice->refunded_at,
+            'payment_url' => $payment['invoiceUrl'] ?? $invoice->payment_url,
+            'receipt_url' => $payment['transactionReceiptUrl'] ?? $payment['receiptUrl'] ?? $invoice->receipt_url,
+            'bank_slip_url' => $payment['bankSlipUrl'] ?? $invoice->bank_slip_url,
+            'failure_reason' => $payment['failureReason'] ?? null,
+        ]);
+
+        FinancialEvent::query()->firstOrCreate(
+            ['provider' => 'asaas', 'external_event_id' => (string) data_get($payload, 'id')],
+            [
+                'team_id' => $invoice->team_id,
+                'invoice_id' => $invoice->id,
+                'type' => $eventName,
+                'status' => (string) ($payment['status'] ?? ''),
+                'amount' => is_numeric($payment['value'] ?? null) ? $payment['value'] : $invoice->total,
+                'title' => str($eventName)->replace('_', ' ')->lower()->ucfirst()->toString(),
+                'description' => 'Cobrança avulsa sincronizada automaticamente pelo Asaas.',
+                'occurred_at' => now(),
+            ],
+        );
     }
 
     private function validToken(Request $request): bool

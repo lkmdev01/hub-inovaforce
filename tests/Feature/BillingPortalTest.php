@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Subscription;
 use App\Models\User;
@@ -20,35 +19,6 @@ class BillingPortalTest extends TestCase
         $this->actingAs($user)->get(route('subscriptions.index'))->assertOk();
         $this->actingAs($user)->get(route('invoices.index'))->assertOk();
         $this->actingAs($user)->get(route('products.index'))->assertOk();
-    }
-
-    public function test_customer_can_issue_an_invoice_for_their_subscription(): void
-    {
-        $user = User::factory()->create();
-        $product = Product::query()->create([
-            'name' => 'Flow CRM',
-            'slug' => 'flow-crm',
-            'description' => 'CRM',
-        ]);
-        $subscription = Subscription::query()->create([
-            'team_id' => $user->current_team_id,
-            'product_id' => $product->id,
-            'plan_name' => 'Profissional',
-            'status' => 'active',
-            'billing_cycle' => 'monthly',
-            'amount' => 179,
-            'seats' => 2,
-        ]);
-
-        $response = $this->actingAs($user)->post(route('invoices.issue', ['subscription' => $subscription]));
-
-        $response->assertRedirect();
-        $this->assertDatabaseHas(Invoice::class, [
-            'team_id' => $user->current_team_id,
-            'subscription_id' => $subscription->id,
-            'total' => 179,
-            'status' => 'open',
-        ]);
     }
 
     public function test_customer_cannot_change_another_teams_subscription(): void

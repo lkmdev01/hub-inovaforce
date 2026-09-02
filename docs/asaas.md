@@ -34,7 +34,9 @@ O endpoint trata os eventos de checkout, pagamento e assinatura, incluindo:
 - eventos de nota fiscal, como `INVOICE_AUTHORIZED`, `INVOICE_CANCELED` e `INVOICE_ERROR`;
 - análise de risco, estornos, reembolsos e chargebacks.
 
-Os eventos são processados de forma idempotente pelo identificador enviado pelo Asaas.
+Os eventos são gravados de forma idempotente pelo identificador enviado pelo Asaas e as automações são processadas em fila, com cinco tentativas. Falhas podem ser reprocessadas em **Administração > Automações**.
+
+Além do webhook, o Hub consulta de hora em hora as cobranças das assinaturas para recuperar eventos eventualmente perdidos.
 
 ## Produção
 
@@ -45,7 +47,9 @@ ASAAS_API_KEY=sua_chave_de_producao
 ASAAS_BASE_URL=https://api.asaas.com/v3
 ```
 
-O checkout recorrente deste projeto usa cartão de crédito. As faturas geradas pelo ciclo da assinatura são recebidas pelo webhook e ficam disponíveis no Hub com o link de pagamento do Asaas.
+Cada plano define a forma de pagamento aceita no checkout recorrente (`CREDIT_CARD` ou `PIX`). As faturas geradas pelo ciclo da assinatura são recebidas pelo webhook e ficam disponíveis no Hub com o link hospedado pelo Asaas. O Hub não coleta nem armazena dados de cartão.
+
+O administrador também pode gerar cobranças avulsas por Pix, boleto ou forma escolhida pelo cliente e solicitar o estorno integral de uma cobrança paga. A confirmação final sempre vem do Asaas por webhook.
 
 ## Grupos de clientes
 
@@ -65,6 +69,14 @@ O Hub configura cada assinatura para emissão automática e sincroniza situaçã
 ## Régua de cobrança e WhatsApp
 
 O agendador do Laravel deve rodar em produção para enviar os lembretes de vencimento e de 3, 7 e 15 dias de atraso.
+
+No deploy da HostGator, o GitHub Actions tenta instalar automaticamente esta tarefa:
+
+```cron
+* * * * * /opt/cpanel/ea-php83/root/usr/bin/php /home1/lukasm44/repositories/hub-inovaforce/artisan schedule:run >> /home1/lukasm44/repositories/hub-inovaforce/storage/logs/scheduler.log 2>&1
+```
+
+Se a hospedagem bloquear o comando `crontab`, cadastre essa mesma execução em **cPanel > Trabalhos Cron**. Ela processa a fila, cancelamentos, conciliação e lembretes.
 
 Para WhatsApp, configure um gateway ou automação que aceite chamadas HTTP:
 
@@ -86,3 +98,14 @@ X-Hub-Signature: sha256=assinatura_hmac_do_corpo
 ```
 
 A assinatura é calculada com o segredo configurado no produto. Reenvios do mesmo evento não geram provisionamentos duplicados.
+
+## Operação e segurança
+
+- o painel administrativo exige autenticação em duas etapas por padrão (`ADMIN_REQUIRE_TWO_FACTOR=true`);
+- alterações administrativas e do portal ficam registradas na central de automações;
+- o agendador grava um sinal de vida a cada minuto, visível na central;
+- um backup local compactado do banco é criado diariamente às 02:30 e mantido por 14 dias em `storage/app/private/backups`;
+- mantenha também um backup externo da conta HostGator, pois uma cópia no mesmo servidor não protege contra indisponibilidade total;
+- monitore `https://hub.inovaforce.com.br/up` em um serviço de uptime.
+
+Depois do primeiro deploy desta versão, acesse **Configurações > Segurança**, ative o 2FA do usuário master e guarde os códigos de recuperação em local seguro.

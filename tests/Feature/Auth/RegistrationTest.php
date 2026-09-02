@@ -24,6 +24,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'terms' => '1',
         ]);
 
         $user = User::where('email', 'test@example.com')->first();
@@ -34,6 +35,7 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $this->assertFalse($user->is_admin);
         $this->assertNull($user->email_verified_at);
+        $this->assertNotNull($user->accepted_terms_at);
     }
 
     public function test_unverified_customer_cannot_access_the_portal(): void

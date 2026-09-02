@@ -68,6 +68,21 @@
         </div>
 
         <div class="grid gap-6 xl:grid-cols-2">
+            @if ($customer?->external_customer_id)
+                <section class="portal-card p-5">
+                    <h2 class="font-semibold">Nova cobrança avulsa</h2>
+                    <p class="mt-0.5 text-sm text-zinc-500">Gere uma cobrança no Asaas sem criar uma assinatura.</p>
+                    <form method="POST" action="{{ route('admin.payments.store', $team) }}" class="mt-5 grid gap-4 sm:grid-cols-2">
+                        @csrf
+                        <label class="sm:col-span-2"><span class="mb-1 block text-sm font-medium">Descrição</span><input name="description" value="{{ old('description') }}" required maxlength="255" class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"></label>
+                        <label><span class="mb-1 block text-sm font-medium">Valor</span><input name="value" type="number" min="1" step="0.01" value="{{ old('value') }}" required class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"></label>
+                        <label><span class="mb-1 block text-sm font-medium">Vencimento</span><input name="due_date" type="date" min="{{ now()->toDateString() }}" value="{{ old('due_date', now()->addDays(7)->toDateString()) }}" required class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"></label>
+                        <label class="sm:col-span-2"><span class="mb-1 block text-sm font-medium">Forma de pagamento</span><select name="billing_type" class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"><option value="UNDEFINED">Cliente escolhe</option><option value="PIX">Pix</option><option value="BOLETO">Boleto</option></select></label>
+                        <button class="sm:col-span-2 inline-flex h-11 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500">Criar cobrança no Asaas</button>
+                    </form>
+                </section>
+            @endif
+
             <section class="portal-card overflow-hidden">
                 <div class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800"><h2 class="font-semibold">Usuários com acesso</h2><p class="mt-0.5 text-sm text-zinc-500">Membros cadastrados nesta empresa</p></div>
                 <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -83,7 +98,13 @@
                 <div class="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800"><h2 class="font-semibold">Faturas recentes</h2><p class="mt-0.5 text-sm text-zinc-500">Últimos lançamentos do cliente</p></div>
                 <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
                     @forelse ($team->invoices->sortByDesc('issued_at')->take(6) as $invoice)
-                        <div class="flex items-center gap-4 px-5 py-4"><div class="min-w-0 flex-1"><strong class="block text-sm">{{ $invoice->number }}</strong><span class="text-xs text-zinc-500">Vencimento {{ $invoice->due_at->format('d/m/Y') }}</span></div><x-portal-status :status="$invoice->status" /><strong class="text-sm">R$ {{ number_format($invoice->total, 2, ',', '.') }}</strong></div>
+                        <div class="flex flex-wrap items-center gap-4 px-5 py-4">
+                            <div class="min-w-0 flex-1"><strong class="block text-sm">{{ $invoice->description ?: $invoice->number }}</strong><span class="text-xs text-zinc-500">{{ $invoice->number }} · vencimento {{ $invoice->due_at->format('d/m/Y') }}</span></div>
+                            <x-portal-status :status="$invoice->status" /><strong class="text-sm">R$ {{ number_format($invoice->total, 2, ',', '.') }}</strong>
+                            @if ($invoice->billing_provider === 'asaas' && $invoice->external_invoice_id && $invoice->status === 'paid')
+                                <form method="POST" action="{{ route('admin.payments.refund', $invoice) }}" onsubmit="return confirm('Confirma o estorno integral desta cobrança no Asaas?')">@csrf<input type="hidden" name="description" value="Estorno integral solicitado pelo administrador do Hub"><button class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900">Estornar</button></form>
+                            @endif
+                        </div>
                     @empty
                         <div class="p-8 text-center text-sm text-zinc-500">Nenhuma fatura emitida.</div>
                     @endforelse

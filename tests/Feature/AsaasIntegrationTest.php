@@ -142,6 +142,7 @@ class AsaasIntegrationTest extends TestCase
 
         $this->assertSame('active', $subscription->refresh()->status);
         $this->assertSame(1, WebhookEvent::query()->where('provider', 'asaas')->count());
+        $this->assertSame('completed', WebhookEvent::query()->firstOrFail()->automation_status);
     }
 
     public function test_payment_webhook_reconciles_subscription_and_invoice(): void
@@ -323,6 +324,60 @@ class AsaasIntegrationTest extends TestCase
         $this->assertSame('canceled', $subscription->refresh()->status);
         Http::assertSent(fn ($request) => $request->method() === 'DELETE'
             && $request->url() === 'https://api-sandbox.asaas.com/v3/subscriptions/sub_asaas_789');
+    }
+
+    public function test_customer_keeps_access_until_the_end_of_the_paid_period(): void
+    {
+        Http::fake(['https://api-sandbox.asaas.com/v3/subscriptions/sub_period_end' => Http::response(['deleted' => true])]);
+        $subscription = $this->pendingSubscription([
+            'status' => 'active',
+            'access_status' => 'active',
+            'external_subscription_id' => 'sub_period_end',
+            'renews_at' => now()->addDays(12),
+        ]);
+        $user = $subscription->team->members()->firstOrFail();
+
+        $this->actingAs($user)->post(route('subscriptions.toggle', [
+            'current_team' => $subscription->team,
+            'subscription' => $subscription,
+        ]))->assertSessionHas('success');
+
+        $subscription->refresh();
+        $this->assertSame('active', $subscription->status);
+        $this->assertSame('active', $subscription->access_status);
+        $this->assertTrue($subscription->cancel_at_period_end);
+
+        $subscription->update(['renews_at' => now()->subMinute()]);
+        $this->artisan('subscriptions:finalize-cancellations')->assertSuccessful();
+        $this->assertSame('canceled', $subscription->refresh()->status);
+        $this->assertSame('revoked', $subscription->access_status);
+    }
+
+    public function test_administrator_can_create_and_refund_a_one_off_charge(): void
+    {
+        Http::fake([
+            'https://api-sandbox.asaas.com/v3/payments' => Http::response(['id' => 'pay_one_off', 'status' => 'PENDING', 'invoiceUrl' => 'https://asaas.test/pay']),
+            'https://api-sandbox.asaas.com/v3/payments/pay_one_off/refund' => Http::response(['id' => 'pay_one_off', 'status' => 'REFUND_REQUESTED']),
+        ]);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $customerUser = User::factory()->create();
+        BillingCustomer::query()->create([
+            'team_id' => $customerUser->current_team_id, 'billing_provider' => 'asaas',
+            'external_customer_id' => 'cus_one_off', 'name' => 'Acme', 'email' => 'financeiro@acme.test',
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.payments.store', $customerUser->currentTeam), [
+            'description' => 'Implantação adicional', 'billing_type' => 'PIX',
+            'value' => 490, 'due_date' => today()->addDays(7)->toDateString(),
+        ])->assertSessionHas('success');
+
+        $invoice = Invoice::query()->where('external_payment_id', 'pay_one_off')->firstOrFail();
+        $invoice->update(['status' => 'paid']);
+        $this->actingAs($admin)->post(route('admin.payments.refund', $invoice), [
+            'description' => 'Estorno integral autorizado pelo financeiro',
+        ])->assertSessionHas('success');
+
+        $this->assertSame('refund_pending', $invoice->refresh()->status);
     }
 
     public function test_webhook_with_invalid_token_is_rejected(): void

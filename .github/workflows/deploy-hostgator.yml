@@ -117,6 +117,17 @@ jobs:
           "$PHP_BIN" artisan config:cache
           "$PHP_BIN" artisan view:cache
           "$PHP_BIN" artisan queue:restart
+
+          CRON_MARKER="# hub-inovaforce-scheduler"
+          CRON_ENTRY="* * * * * $PHP_BIN $APP_PATH/artisan schedule:run >> $APP_PATH/storage/logs/scheduler.log 2>&1 $CRON_MARKER"
+          if command -v crontab >/dev/null 2>&1; then
+              CURRENT_CRON="$(crontab -l 2>/dev/null || true)"
+              CLEAN_CRON="$(printf '%s\n' "$CURRENT_CRON" | grep -vF "$CRON_MARKER" || true)"
+              printf '%s\n%s\n' "$CLEAN_CRON" "$CRON_ENTRY" | sed '/^[[:space:]]*$/d' | crontab -
+          else
+              echo "Aviso: crontab nao esta disponivel; configure o schedule:run no cPanel."
+          fi
+
           "$PHP_BIN" artisan up
           trap - EXIT
           REMOTE
