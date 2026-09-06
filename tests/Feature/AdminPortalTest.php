@@ -8,7 +8,9 @@ use App\Models\ProductPlan;
 use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\User;
+use App\Notifications\CustomerAccessInvitation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class AdminPortalTest extends TestCase
@@ -43,16 +45,13 @@ class AdminPortalTest extends TestCase
 
     public function test_administrator_can_create_a_customer_company_and_access(): void
     {
+        Notification::fake();
         $admin = User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($admin)->post(route('admin.customers.store'), [
             'company_name' => 'Acme Tecnologia Ltda.',
             'contact_name' => 'Maria da Silva',
             'email' => 'maria@acme.test',
-            'password' => 'senha-segura-123',
-            'tax_id' => '12.345.678/0001-90',
-            'cellphone' => '(11) 99999-9999',
-            'zip_code' => '01310-100',
         ]);
 
         $team = Team::query()->where('name', 'Acme Tecnologia Ltda.')->firstOrFail();
@@ -63,8 +62,10 @@ class AdminPortalTest extends TestCase
         $this->assertDatabaseHas(BillingCustomer::class, [
             'team_id' => $team->id,
             'name' => 'Acme Tecnologia Ltda.',
-            'tax_id' => '12.345.678/0001-90',
+            'tax_id' => null,
         ]);
+        $this->assertNull($user->email_verified_at);
+        Notification::assertSentTo($user, CustomerAccessInvitation::class);
         $this->actingAs($admin)->get(route('admin.customers.show', $team))->assertOk()->assertSee('Maria da Silva');
     }
 

@@ -9,8 +9,10 @@ use App\Models\ProductPlan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\WebhookEvent;
+use App\Notifications\BillingEventNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class AsaasIntegrationTest extends TestCase
@@ -378,6 +380,60 @@ class AsaasIntegrationTest extends TestCase
         ])->assertSessionHas('success');
 
         $this->assertSame('refund_pending', $invoice->refresh()->status);
+    }
+
+    public function test_administrator_can_create_a_recurring_subscription_with_customer_payment_choice(): void
+    {
+        Notification::fake();
+        Http::fake([
+            'https://api-sandbox.asaas.com/v3/subscriptions' => Http::response(['id' => 'sub_admin_monthly']),
+            'https://api-sandbox.asaas.com/v3/subscriptions/sub_admin_monthly/payments' => Http::response([
+                'data' => [[
+                    'id' => 'pay_admin_first',
+                    'status' => 'PENDING',
+                    'value' => 249,
+                    'dateCreated' => today()->toDateString(),
+                    'dueDate' => today()->addDays(7)->toDateString(),
+                    'invoiceUrl' => 'https://asaas.test/i/pay_admin_first',
+                ]],
+            ]),
+        ]);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $customerUser = User::factory()->create();
+        BillingCustomer::query()->create([
+            'team_id' => $customerUser->current_team_id,
+            'billing_provider' => 'asaas',
+            'external_customer_id' => 'cus_admin_monthly',
+            'name' => 'Cliente Mensal',
+            'email' => 'financeiro@mensal.test',
+            'tax_id' => '12345678000190',
+        ]);
+        $product = Product::query()->create(['name' => 'Sistema Mensal', 'slug' => 'sistema-mensal', 'description' => 'Software']);
+        $plan = ProductPlan::query()->create([
+            'product_id' => $product->id,
+            'name' => 'Mensal',
+            'billing_cycle' => 'monthly',
+            'billing_type' => 'UNDEFINED',
+            'price' => 249,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.subscriptions.store-for-customer', $customerUser->currentTeam), [
+            'product_plan_id' => $plan->id,
+            'seats' => 1,
+            'first_due_date' => today()->addDays(7)->toDateString(),
+        ])->assertSessionHas('success');
+
+        $subscription = Subscription::query()->where('external_subscription_id', 'sub_admin_monthly')->firstOrFail();
+        $this->assertDatabaseHas(Invoice::class, [
+            'subscription_id' => $subscription->id,
+            'external_payment_id' => 'pay_admin_first',
+            'payment_url' => 'https://asaas.test/i/pay_admin_first',
+        ]);
+        Http::assertSent(fn ($request) => $request->url() === 'https://api-sandbox.asaas.com/v3/subscriptions'
+            && $request['billingType'] === 'UNDEFINED'
+            && $request['cycle'] === 'MONTHLY'
+            && $request['externalReference'] === 'hub-subscription-'.$subscription->id);
+        Notification::assertSentOnDemand(BillingEventNotification::class);
     }
 
     public function test_webhook_with_invalid_token_is_rejected(): void

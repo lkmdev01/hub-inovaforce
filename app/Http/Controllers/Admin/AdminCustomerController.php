@@ -6,13 +6,16 @@ use App\Actions\Teams\CreateTeam;
 use App\Http\Controllers\Controller;
 use App\Models\BillingCustomer;
 use App\Models\CustomerGroup;
+use App\Models\ProductPlan;
 use App\Models\Team;
 use App\Models\User;
+use App\Notifications\CustomerAccessInvitation;
 use App\Services\BillingProviderManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -44,16 +47,8 @@ class AdminCustomerController extends Controller
             'contact_name' => ['required', 'string', 'max:255'],
             'company_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', Password::defaults()],
-            'tax_id' => ['required', 'string', 'max:20'],
-            'cellphone' => ['required', 'string', 'max:30'],
-            'zip_code' => ['nullable', 'string', 'max:10'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'address_number' => ['nullable', 'string', 'max:30'],
-            'complement' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'municipal_inscription' => ['nullable', 'string', 'max:50'],
-            'state_inscription' => ['nullable', 'string', 'max:50'],
+            'tax_id' => ['nullable', 'string', 'max:20'],
+            'cellphone' => ['nullable', 'string', 'max:30'],
             'customer_group_id' => ['nullable', 'integer', 'exists:customer_groups,id'],
         ]);
 
@@ -61,29 +56,27 @@ class AdminCustomerController extends Controller
             $user = User::query()->create([
                 'name' => $data['contact_name'],
                 'email' => $data['email'],
-                'password' => $data['password'],
-                'email_verified_at' => now(),
+                'password' => Str::password(64),
             ]);
             $team = $createTeam->handle($user, $data['company_name']);
             $customer = $team->billingCustomer()->create([
                 'name' => $data['company_name'],
                 'email' => $data['email'],
-                'tax_id' => $data['tax_id'],
-                'cellphone' => $data['cellphone'],
-                'zip_code' => $data['zip_code'],
-                'address' => $data['address'] ?? null,
-                'address_number' => $data['address_number'] ?? null,
-                'complement' => $data['complement'] ?? null,
-                'province' => $data['province'] ?? null,
-                'municipal_inscription' => $data['municipal_inscription'] ?? null,
-                'state_inscription' => $data['state_inscription'] ?? null,
+                'tax_id' => $data['tax_id'] ?? null,
+                'cellphone' => $data['cellphone'] ?? null,
                 'customer_group_id' => $data['customer_group_id'] ?? null,
             ]);
 
             return [$team, $customer];
         });
 
-        if ($billing->configured()) {
+        $user = $team->members()->where('users.email', $data['email'])->firstOrFail();
+        $user->notify(new CustomerAccessInvitation(
+            Password::broker()->createToken($user),
+            $team->name,
+        ));
+
+        if ($billing->configured() && filled($customer->tax_id)) {
             try {
                 $remote = $billing->syncCustomer($customer);
                 $customer->update([
@@ -97,21 +90,31 @@ class AdminCustomerController extends Controller
             }
         }
 
-        return redirect()->route('admin.customers.show', $team)->with('success', 'Cliente cadastrado com sucesso.');
+        return redirect()->route('admin.customers.show', $team)->with('success', 'Cliente cadastrado. O convite para criar a senha foi enviado por e-mail.');
     }
 
     public function show(Team $team): View
     {
         $team->load(['billingCustomer.group', 'members', 'subscriptions.product', 'subscriptions.plan', 'invoices', 'fiscalDocuments', 'financialEvents']);
         $groups = CustomerGroup::query()->where('active', true)->orderBy('name')->get();
+        $plans = ProductPlan::query()
+            ->with('product')
+            ->where('status', 'active')
+            ->whereHas('product', fn ($query) => $query->where('status', 'active'))
+            ->orderBy('name')
+            ->get();
 
-        return view('admin.customers.show', compact('team', 'groups'));
+        return view('admin.customers.show', compact('team', 'groups', 'plans'));
     }
 
     public function sync(Team $team, BillingProviderManager $billing): RedirectResponse
     {
         $customer = $team->billingCustomer;
         abort_unless($customer !== null, 404);
+
+        if (blank($customer->tax_id)) {
+            return back()->with('warning', 'Informe o CPF ou CNPJ antes de sincronizar o cliente com o Asaas.');
+        }
 
         try {
             $remote = $billing->syncCustomer($customer);

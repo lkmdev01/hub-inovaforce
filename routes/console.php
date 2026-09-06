@@ -16,7 +16,7 @@ Schedule::call(fn () => app(BillingAutomationService::class)->runDunning())
     ->dailyAt('09:00')
     ->name('billing-reminders')
     ->withoutOverlapping()
-    ->description('Send billing reminders for overdue invoices');
+    ->description('Send reminders for upcoming and overdue invoices');
 
 Schedule::command('subscriptions:finalize-cancellations')
     ->everyMinute()

@@ -22,7 +22,7 @@ class AdminPaymentController extends Controller
 
         $data = $request->validate([
             'description' => ['required', 'string', 'max:500'],
-            'billing_type' => ['required', Rule::in(['UNDEFINED', 'PIX', 'BOLETO'])],
+            'billing_type' => ['required', Rule::in(['UNDEFINED', 'PIX', 'BOLETO', 'CREDIT_CARD'])],
             'value' => ['required', 'numeric', 'min:1', 'max:999999.99'],
             'due_date' => ['required', 'date', 'after_or_equal:today'],
         ]);

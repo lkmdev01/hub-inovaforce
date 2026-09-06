@@ -73,6 +73,29 @@
             </section>
         </div>
 
+        @if ($customer)
+            <section class="portal-card p-5">
+                <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                    <div><h2 class="font-semibold">Criar cobrança recorrente</h2><p class="mt-0.5 text-sm text-zinc-500">O Asaas gera uma nova fatura a cada ciclo. Na fatura, o cliente escolhe entre as formas de pagamento habilitadas na sua conta Asaas.</p></div>
+                    <span class="inline-flex w-fit rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">Recorrência automática</span>
+                </div>
+
+                @if (blank($customer->tax_id))
+                    <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">O CPF ou CNPJ ainda não foi informado. Peça ao cliente para completar o perfil financeiro antes de criar a assinatura.</div>
+                @elseif ($plans->isEmpty())
+                    <div class="mt-5 rounded-xl border border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800">Cadastre e ative um produto com plano antes de criar a assinatura.</div>
+                @else
+                    <form method="POST" action="{{ route('admin.subscriptions.store-for-customer', $team) }}" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        @csrf
+                        <label class="grid gap-1.5 text-sm font-medium sm:col-span-2"><span>Produto e plano</span><select name="product_plan_id" required class="h-11 rounded-xl border border-zinc-300 bg-white px-3 font-normal dark:border-zinc-700 dark:bg-zinc-900">@foreach ($plans as $plan)<option value="{{ $plan->id }}" @selected((int) old('product_plan_id') === $plan->id)>{{ $plan->product->name }} — {{ $plan->name }} · {{ App\Models\ProductPlan::CYCLES[$plan->billing_cycle] ?? $plan->billing_cycle }} · R$ {{ number_format($plan->price, 2, ',', '.') }}{{ $plan->pricing_model === 'per_seat' ? '/acesso' : '' }}</option>@endforeach</select>@error('product_plan_id')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
+                        <label class="grid gap-1.5 text-sm font-medium"><span>Acessos</span><input name="seats" type="number" min="1" max="500" value="{{ old('seats', 1) }}" required class="h-11 rounded-xl border border-zinc-300 bg-white px-3 font-normal dark:border-zinc-700 dark:bg-zinc-900">@error('seats')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
+                        <label class="grid gap-1.5 text-sm font-medium"><span>Primeiro vencimento</span><input name="first_due_date" type="date" min="{{ today()->toDateString() }}" value="{{ old('first_due_date', today()->addDays(7)->toDateString()) }}" required class="h-11 rounded-xl border border-zinc-300 bg-white px-3 font-normal dark:border-zinc-700 dark:bg-zinc-900">@error('first_due_date')<span class="text-xs text-red-600">{{ $message }}</span>@enderror</label>
+                        <div class="flex flex-col justify-between gap-3 sm:col-span-2 lg:col-span-4 sm:flex-row sm:items-center"><p class="text-xs text-zinc-500">Padrão: cliente escolhe Pix, boleto ou cartão conforme disponibilidade no Asaas.</p><button class="inline-flex h-11 items-center justify-center rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white hover:bg-violet-500">Criar assinatura e avisar cliente</button></div>
+                    </form>
+                @endif
+            </section>
+        @endif
+
         <div class="grid gap-6 xl:grid-cols-2">
             @if ($customer?->external_customer_id)
                 <section class="portal-card p-5">
@@ -83,7 +106,7 @@
                         <label class="sm:col-span-2"><span class="mb-1 block text-sm font-medium">Descrição</span><input name="description" value="{{ old('description') }}" required maxlength="255" class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"></label>
                         <label><span class="mb-1 block text-sm font-medium">Valor</span><input name="value" type="number" min="1" step="0.01" value="{{ old('value') }}" required class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"></label>
                         <label><span class="mb-1 block text-sm font-medium">Vencimento</span><input name="due_date" type="date" min="{{ now()->toDateString() }}" value="{{ old('due_date', now()->addDays(7)->toDateString()) }}" required class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"></label>
-                        <label class="sm:col-span-2"><span class="mb-1 block text-sm font-medium">Forma de pagamento</span><select name="billing_type" class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"><option value="UNDEFINED">Cliente escolhe</option><option value="PIX">Pix</option><option value="BOLETO">Boleto</option></select></label>
+                        <label class="sm:col-span-2"><span class="mb-1 block text-sm font-medium">Forma de pagamento</span><select name="billing_type" class="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"><option value="UNDEFINED">Cliente escolhe</option><option value="PIX">Pix</option><option value="BOLETO">Boleto</option><option value="CREDIT_CARD">Cartão de crédito</option></select></label>
                         <button class="sm:col-span-2 inline-flex h-11 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500">Criar cobrança no Asaas</button>
                     </form>
                 </section>

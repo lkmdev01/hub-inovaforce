@@ -38,6 +38,7 @@ class ProductPlan extends Model
 
     /** @var array<string, string> */
     public const BILLING_TYPES = [
+        'UNDEFINED' => 'Cliente escolhe (Pix ou cartão)',
         'CREDIT_CARD' => 'Cartão de crédito',
         'PIX' => 'Pix',
     ];

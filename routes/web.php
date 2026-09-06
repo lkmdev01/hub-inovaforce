@@ -41,6 +41,7 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'admin', 'audit'])->name
     Route::post('grupos-de-clientes', [AdminCustomerGroupController::class, 'store'])->name('customer-groups.store');
     Route::delete('grupos-de-clientes/{group}', [AdminCustomerGroupController::class, 'destroy'])->name('customer-groups.destroy');
     Route::get('assinaturas', [AdminSubscriptionController::class, 'index'])->name('subscriptions.index');
+    Route::post('clientes/{team}/assinaturas', [AdminSubscriptionController::class, 'storeForCustomer'])->name('subscriptions.store-for-customer');
     Route::post('assinaturas/{subscription}/cancelar', [AdminSubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::get('produtos', [AdminProductController::class, 'index'])->name('products.index');
     Route::post('produtos', [AdminProductController::class, 'store'])->name('products.store');

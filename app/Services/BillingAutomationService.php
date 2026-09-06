@@ -59,6 +59,7 @@ class BillingAutomationService
         }
 
         match ($eventName) {
+            'PAYMENT_CREATED' => $this->paymentCreated($subscription, $invoice),
             'PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED' => $this->paymentReceived($subscription, $invoice, $eventId),
             'PAYMENT_OVERDUE' => $this->paymentOverdue($subscription, $invoice, $eventId),
             'PAYMENT_REFUNDED', 'PAYMENT_REFUND_IN_PROGRESS' => $this->paymentRefunded($subscription, $invoice, $eventId),
@@ -73,7 +74,7 @@ class BillingAutomationService
         Invoice::query()
             ->with(['subscription.team.billingCustomer'])
             ->whereIn('status', ['open', 'overdue'])
-            ->whereDate('due_at', '<=', today())
+            ->whereDate('due_at', '<=', today()->addDays(7))
             ->chunkById(100, function ($invoices): void {
                 foreach ($invoices as $invoice) {
                     $subscription = $invoice->subscription;
@@ -81,21 +82,52 @@ class BillingAutomationService
                         continue;
                     }
 
-                    $days = max(0, (int) $invoice->due_at->diffInDays(today()));
-                    if (! in_array($days, [0, 3, 7, 15], true)) {
+                    $daysUntilDue = (int) today()->diffInDays($invoice->due_at, false);
+                    $isUpcoming = $daysUntilDue >= 0 && in_array($daysUntilDue, [0, 1, 3, 7], true);
+                    $daysOverdue = abs($daysUntilDue);
+                    $isOverdue = $daysUntilDue < 0 && in_array($daysOverdue, [3, 7, 15], true);
+
+                    if (! $isUpcoming && ! $isOverdue) {
                         continue;
                     }
 
                     $this->communicate(
                         $subscription,
                         $invoice,
-                        'dunning-'.$invoice->id.'-'.$days,
-                        'overdue_d'.$days,
-                        $days === 0 ? 'Sua fatura vence hoje' : 'Fatura pendente há '.$days.' dias',
-                        'Existe uma cobrança pendente de R$ '.number_format((float) $invoice->total, 2, ',', '.').'. Acesse o Hub para consultar e pagar.',
+                        'billing-reminder-'.$invoice->id.'-'.$daysUntilDue,
+                        $isUpcoming ? 'due_d'.$daysUntilDue : 'overdue_d'.$daysOverdue,
+                        $isUpcoming
+                            ? ($daysUntilDue === 0 ? 'Sua fatura vence hoje' : 'Sua fatura vence em '.$daysUntilDue.' dia(s)')
+                            : 'Fatura pendente há '.$daysOverdue.' dias',
+                        'Existe uma cobrança pendente de R$ '.number_format((float) $invoice->total, 2, ',', '.').'. Consulte a fatura e escolha a forma de pagamento no Asaas.',
+                        $invoice->payment_url,
+                        'Ver e pagar fatura',
                     );
                 }
             });
+    }
+
+    public function notifyInvoiceCreated(Subscription $subscription, Invoice $invoice): void
+    {
+        $this->paymentCreated($subscription, $invoice);
+    }
+
+    private function paymentCreated(Subscription $subscription, ?Invoice $invoice): void
+    {
+        if (! $invoice) {
+            return;
+        }
+
+        $this->communicate(
+            $subscription,
+            $invoice,
+            'invoice-created-'.$invoice->external_payment_id,
+            'payment_created',
+            'Nova fatura disponível',
+            'Sua fatura de R$ '.number_format((float) $invoice->total, 2, ',', '.').' vence em '.$invoice->due_at->format('d/m/Y').'. Escolha a forma de pagamento na página segura do Asaas.',
+            $invoice->payment_url,
+            'Ver e pagar fatura',
+        );
     }
 
     private function paymentReceived(Subscription $subscription, ?Invoice $invoice, string $eventId): void
@@ -152,14 +184,14 @@ class BillingAutomationService
         );
     }
 
-    private function communicate(Subscription $subscription, ?Invoice $invoice, string $key, string $template, string $title, string $message): void
+    private function communicate(Subscription $subscription, ?Invoice $invoice, string $key, string $template, string $title, string $message, ?string $actionUrl = null, ?string $actionLabel = null): void
     {
         $customer = $subscription->team->billingCustomer;
         if (! $customer) {
             return;
         }
 
-        $url = route('invoices.index', ['current_team' => $subscription->team]);
+        $url = $actionUrl ?: route('invoices.index', ['current_team' => $subscription->team]);
         $email = CommunicationLog::query()->firstOrCreate(
             ['deduplication_key' => $key.'-email'],
             [
@@ -177,7 +209,7 @@ class BillingAutomationService
 
         if ($email->wasRecentlyCreated) {
             try {
-                Notification::route('mail', $customer->email)->notify(new BillingEventNotification($title, $message, $url, 'Consultar no Hub'));
+                Notification::route('mail', $customer->email)->notify(new BillingEventNotification($title, $message, $url, $actionLabel ?? 'Consultar no Hub'));
                 $email->update(['status' => 'sent', 'sent_at' => now()]);
             } catch (Throwable $exception) {
                 $email->update(['status' => 'failed', 'error_message' => $exception->getMessage()]);

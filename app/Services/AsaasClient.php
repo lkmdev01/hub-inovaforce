@@ -57,7 +57,9 @@ class AsaasClient
 
         $returnUrl = route('subscriptions.index', ['current_team' => $customer->team]);
         $checkout = $this->post('/checkouts', [
-            'billingTypes' => [$plan->billing_type],
+            'billingTypes' => $plan->billing_type === 'UNDEFINED'
+                ? ['PIX', 'CREDIT_CARD']
+                : [$plan->billing_type],
             'chargeTypes' => ['RECURRENT'],
             'minutesToExpire' => 60,
             'externalReference' => 'hub-subscription-'.$subscription->id,
@@ -88,6 +90,24 @@ class AsaasClient
             'checkout_id' => $checkoutId,
             'url' => rtrim((string) config('services.asaas.checkout_url'), '?&').'?id='.$checkoutId,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function createSubscription(BillingCustomer $customer, ProductPlan $plan, Subscription $subscription, string $nextDueDate): array
+    {
+        if (! $customer->external_customer_id || $customer->billing_provider !== 'asaas') {
+            throw new RuntimeException('O cliente ainda não foi sincronizado com o Asaas.');
+        }
+
+        return $this->post('/subscriptions', [
+            'customer' => $customer->external_customer_id,
+            'billingType' => 'UNDEFINED',
+            'value' => $plan->totalForSeats($subscription->seats),
+            'nextDueDate' => $nextDueDate,
+            'cycle' => strtoupper($plan->billing_cycle),
+            'description' => $plan->product->name.' — '.$plan->name,
+            'externalReference' => 'hub-subscription-'.$subscription->id,
+        ]);
     }
 
     /** @return array<string, mixed> */

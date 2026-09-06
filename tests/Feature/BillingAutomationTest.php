@@ -218,6 +218,30 @@ class BillingAutomationTest extends TestCase
         $this->actingAs($admin)->get(route('admin.automations.index'))->assertOk()->assertSee('Automações e eventos')->assertSee('Comunicações');
     }
 
+    public function test_customer_is_reminded_before_an_invoice_is_due(): void
+    {
+        $subscription = $this->subscriptionWithCustomer(['status' => 'active', 'access_status' => 'active']);
+        Invoice::query()->create([
+            'team_id' => $subscription->team_id,
+            'subscription_id' => $subscription->id,
+            'billing_provider' => 'asaas',
+            'external_payment_id' => 'pay_upcoming',
+            'payment_url' => 'https://asaas.test/i/pay_upcoming',
+            'number' => 'ASAAS-UPCOMING',
+            'status' => 'open',
+            'currency' => 'BRL',
+            'subtotal' => 199,
+            'total' => 199,
+            'issued_at' => today(),
+            'due_at' => today()->addDays(3),
+        ]);
+
+        app(BillingAutomationService::class)->runDunning();
+        app(BillingAutomationService::class)->runDunning();
+
+        $this->assertSame(1, CommunicationLog::query()->where('template', 'due_d3')->where('channel', 'email')->count());
+    }
+
     public function test_access_change_is_sent_to_the_configured_software(): void
     {
         Http::fake(['https://crm.example.test/webhooks/access' => Http::response(['ok' => true])]);

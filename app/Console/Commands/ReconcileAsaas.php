@@ -23,7 +23,7 @@ class ReconcileAsaas extends Command
             Subscription::query()
                 ->where('billing_provider', 'asaas')
                 ->whereNotNull('external_subscription_id')
-                ->whereIn('status', ['active', 'trialing', 'past_due'])
+                ->whereIn('status', ['pending', 'active', 'trialing', 'past_due'])
                 ->chunkById(50, function ($subscriptions) use ($asaas, $webhooks, &$processed): void {
                     foreach ($subscriptions as $subscription) {
                         $result = $asaas->subscriptionPayments((string) $subscription->external_subscription_id);
@@ -40,7 +40,12 @@ class ReconcileAsaas extends Command
 
                             $event = $this->eventForStatus((string) $payment['status']);
                             $eventId = 'reconcile-'.(string) $payment['id'].'-'.strtolower((string) $payment['status']);
-                            $webhooks->processPayload(['id' => $eventId, 'event' => $event, 'payment' => $payment], $eventId, $event, dispatchAutomations: false);
+                            $webhooks->processPayload(
+                                ['id' => $eventId, 'event' => $event, 'payment' => $payment],
+                                $eventId,
+                                $event,
+                                dispatchAutomations: $event === 'PAYMENT_CREATED',
+                            );
                             $processed++;
                         }
                     }
@@ -74,7 +79,7 @@ class ReconcileAsaas extends Command
             'CHARGEBACK_REQUESTED' => 'PAYMENT_CHARGEBACK_REQUESTED',
             'CHARGEBACK_DISPUTE' => 'PAYMENT_CHARGEBACK_DISPUTE',
             'DELETED' => 'PAYMENT_DELETED',
-            default => 'PAYMENT_UPDATED',
+            default => 'PAYMENT_CREATED',
         };
     }
 }

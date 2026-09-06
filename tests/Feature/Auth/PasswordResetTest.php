@@ -59,7 +59,7 @@ class PasswordResetTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->unverified()->create();
 
         $this->post(route('password.request'), ['email' => $user->email]);
 
@@ -74,6 +74,7 @@ class PasswordResetTest extends TestCase
             $response
                 ->assertSessionHasNoErrors()
                 ->assertRedirect(route('login', absolute: false));
+            $this->assertNotNull($user->fresh()->email_verified_at);
 
             return true;
         });
