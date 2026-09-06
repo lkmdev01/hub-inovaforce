@@ -109,6 +109,8 @@
                         </form>
                     </details>
 
+                    @include('admin.products._community-sso', compact('product', 'statusStyles'))
+
                     <div class="grid gap-4 bg-zinc-50/60 p-5 dark:bg-zinc-900/30">
                         <div><h3 class="font-semibold">Planos</h3><p class="text-xs text-zinc-500">Planos inativos não aparecem para novas contratações.</p></div>
                         <div class="grid gap-4 xl:grid-cols-2">

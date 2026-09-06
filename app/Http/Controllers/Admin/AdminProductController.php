@@ -128,6 +128,34 @@ class AdminProductController extends Controller
         return back()->with('success', 'Produto atualizado.');
     }
 
+    public function rotateCommunitySsoSecret(Product $product): RedirectResponse
+    {
+        $secret = Str::random(64);
+
+        $product->update([
+            'community_sso_enabled' => true,
+            'community_sso_secret' => $secret,
+        ]);
+
+        return redirect(route('admin.products.index').'#sso-comunidade-'.$product->id)
+            ->with('success', 'Integração com a comunidade ativada. Copie o segredo agora.')
+            ->with('community_sso_credentials', [
+                'product_id' => $product->id,
+                'secret' => $secret,
+            ]);
+    }
+
+    public function disableCommunitySso(Product $product): RedirectResponse
+    {
+        $product->update([
+            'community_sso_enabled' => false,
+            'community_sso_secret' => null,
+        ]);
+
+        return redirect(route('admin.products.index').'#sso-comunidade-'.$product->id)
+            ->with('success', 'Entrada automática na comunidade desativada para este produto.');
+    }
+
     public function storePlan(Request $request, Product $product): RedirectResponse
     {
         $data = $this->validatePlan($request, $product);

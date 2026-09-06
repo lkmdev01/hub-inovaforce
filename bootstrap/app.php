@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'webhooks/asaas',
+            'api/community/sso/*',
         ]);
 
         $middleware->web(append: [

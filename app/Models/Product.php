@@ -26,9 +26,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<string, mixed>|null $fiscal_taxes
  * @property string|null $provisioning_webhook_url
  * @property string|null $provisioning_webhook_secret
+ * @property bool $community_sso_enabled
+ * @property string|null $community_sso_secret
  * @property-read Collection<int, ProductPlan> $plans
  */
-#[Fillable(['name', 'slug', 'description', 'status', 'accent', 'features', 'fiscal_enabled', 'municipal_service_id', 'municipal_service_code', 'municipal_service_name', 'fiscal_service_description', 'fiscal_observations', 'fiscal_deductions', 'fiscal_effective_period', 'fiscal_taxes', 'provisioning_webhook_url', 'provisioning_webhook_secret'])]
+#[Fillable(['name', 'slug', 'description', 'status', 'accent', 'features', 'fiscal_enabled', 'municipal_service_id', 'municipal_service_code', 'municipal_service_name', 'fiscal_service_description', 'fiscal_observations', 'fiscal_deductions', 'fiscal_effective_period', 'fiscal_taxes', 'provisioning_webhook_url', 'provisioning_webhook_secret', 'community_sso_enabled', 'community_sso_secret'])]
 class Product extends Model
 {
     /** @return HasMany<Subscription, $this> */
@@ -53,6 +55,8 @@ class Product extends Model
             'fiscal_deductions' => 'decimal:2',
             'fiscal_taxes' => 'array',
             'provisioning_webhook_secret' => 'encrypted',
+            'community_sso_enabled' => 'boolean',
+            'community_sso_secret' => 'encrypted',
         ];
     }
 }

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ClientPreviewController;
 use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\BillingCustomerController;
 use App\Http\Controllers\BillingPortalController;
+use App\Http\Controllers\CommunitySsoController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\SubscriptionCheckoutController;
 use App\Http\Middleware\EnsureClientPreviewIsReadOnly;
@@ -21,6 +22,12 @@ Route::view('/', 'welcome')->name('home');
 Route::view('termos-de-uso', 'legal.terms')->name('legal.terms');
 Route::view('politica-de-privacidade', 'legal.privacy')->name('legal.privacy');
 Route::post('webhooks/asaas', AsaasWebhookController::class)->name('webhooks.asaas');
+Route::post('api/community/sso/{product:slug}', [CommunitySsoController::class, 'launch'])
+    ->middleware('throttle:30,1')
+    ->name('community.sso.launch');
+Route::get('community/sso/{token}', [CommunitySsoController::class, 'consume'])
+    ->middleware('throttle:30,1')
+    ->name('community.sso.consume');
 
 Route::middleware('auth')->group(function () {
     Route::get('termos/aceitar', [LegalController::class, 'show'])->name('legal.accept');
@@ -46,6 +53,8 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'admin', 'audit'])->name
     Route::get('produtos', [AdminProductController::class, 'index'])->name('products.index');
     Route::post('produtos', [AdminProductController::class, 'store'])->name('products.store');
     Route::put('produtos/{product}', [AdminProductController::class, 'update'])->name('products.update');
+    Route::post('produtos/{product}/sso-comunidade', [AdminProductController::class, 'rotateCommunitySsoSecret'])->name('products.community-sso.rotate');
+    Route::delete('produtos/{product}/sso-comunidade', [AdminProductController::class, 'disableCommunitySso'])->name('products.community-sso.disable');
     Route::post('produtos/{product}/planos', [AdminProductController::class, 'storePlan'])->name('plans.store');
     Route::put('planos/{plan}', [AdminProductController::class, 'updatePlan'])->name('plans.update');
     Route::get('automacoes', [AdminAutomationController::class, 'index'])->name('automations.index');

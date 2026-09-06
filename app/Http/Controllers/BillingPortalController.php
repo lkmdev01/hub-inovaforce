@@ -20,7 +20,18 @@ class BillingPortalController extends Controller
         $subscriptions = $current_team->subscriptions()->with(['product', 'plan', 'pendingPlan'])->latest()->get();
         $invoices = $current_team->invoices()->with('subscription.product')->latest('issued_at')->take(5)->get();
 
-        return view('dashboard', compact('current_team', 'subscriptions', 'invoices'));
+        $catalogProducts = Product::query()
+            ->with(['plans' => fn ($query) => $query->where('status', 'active')])
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+        $subscribedProductIds = $subscriptions
+            ->whereIn('status', ['active', 'trialing', 'past_due'])
+            ->pluck('product_id');
+        $recommendedProducts = $catalogProducts->whereNotIn('id', $subscribedProductIds)->take(3);
+        $openInvoicesCount = $current_team->invoices()->whereIn('status', ['open', 'overdue'])->count();
+
+        return view('dashboard', compact('current_team', 'subscriptions', 'invoices', 'catalogProducts', 'recommendedProducts', 'openInvoicesCount'));
     }
 
     public function subscriptions(Team $current_team): View

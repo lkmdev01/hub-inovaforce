@@ -15,7 +15,7 @@
 
         <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             @foreach ($products as $product)
-                <article class="portal-card flex flex-col overflow-hidden p-6">
+                <article id="produto-{{ $product->id }}" class="portal-card flex scroll-mt-6 flex-col overflow-hidden p-6">
                     <div class="flex items-center justify-between">
                         <div class="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-base font-bold text-white">{{ str($product->name)->substr(0, 2)->upper() }}</div>
                         @if ($subscribedProductIds->contains($product->id))<x-portal-status status="active" />@endif

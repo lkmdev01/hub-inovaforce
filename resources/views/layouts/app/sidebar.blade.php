@@ -29,7 +29,7 @@
                 @else
                     <flux:sidebar.group :heading="$clientPreviewTeam ? __('Portal simulado') : __('Workspace')" class="grid">
                         <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                            {{ __('Visão geral') }}
+                            {{ __('Comunidade') }}
                         </flux:sidebar.item>
                         <flux:sidebar.item icon="squares-2x2" :href="route('subscriptions.index')" :current="request()->routeIs('subscriptions.*')" wire:navigate>{{ __('Assinaturas') }}</flux:sidebar.item>
                         <flux:sidebar.item icon="document-text" :href="route('invoices.index')" :current="request()->routeIs('invoices.*')" wire:navigate>{{ __('Faturas') }}</flux:sidebar.item>
