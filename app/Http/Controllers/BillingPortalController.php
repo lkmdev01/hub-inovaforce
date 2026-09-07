@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductPlan;
 use App\Models\Subscription;
 use App\Models\Team;
+use App\Services\AsaasClient;
 use App\Services\BillingProviderManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,12 @@ class BillingPortalController extends Controller
     public function dashboard(Team $current_team): View
     {
         $subscriptions = $current_team->subscriptions()->with(['product', 'plan', 'pendingPlan'])->latest()->get();
-        $invoices = $current_team->invoices()->with('subscription.product')->latest('issued_at')->take(5)->get();
+        $invoices = $current_team->invoices()
+            ->with('subscription.product')
+            ->where('status', '!=', 'canceled')
+            ->latest('issued_at')
+            ->take(5)
+            ->get();
 
         $catalogProducts = Product::query()
             ->with(['plans' => fn ($query) => $query->where('status', 'active')])
@@ -43,7 +49,11 @@ class BillingPortalController extends Controller
 
     public function invoices(Team $current_team): View
     {
-        $invoices = $current_team->invoices()->with('subscription.product')->latest('issued_at')->get();
+        $invoices = $current_team->invoices()
+            ->with('subscription.product')
+            ->where('status', '!=', 'canceled')
+            ->latest('issued_at')
+            ->get();
 
         return view('portal.invoices', compact('current_team', 'invoices'));
     }
@@ -51,11 +61,43 @@ class BillingPortalController extends Controller
     public function invoice(Team $current_team, Invoice $invoice): View
     {
         abort_unless($invoice->team_id === $current_team->id, 404);
+        abort_if($invoice->status === 'canceled', 404);
 
         return view('portal.invoice', [
             'invoice' => $invoice->load(['subscription.product', 'fiscalDocuments', 'financialEvents']),
             'current_team' => $current_team,
         ]);
+    }
+
+    public function payInvoice(Team $current_team, Invoice $invoice, AsaasClient $asaas): RedirectResponse
+    {
+        abort_unless($invoice->team_id === $current_team->id, 404);
+
+        if (! in_array($invoice->status, ['open', 'overdue'], true)) {
+            return back()->with('warning', 'Esta fatura não está disponível para pagamento.');
+        }
+
+        $paymentUrl = $invoice->payment_url ?: $invoice->bank_slip_url;
+
+        if (! $paymentUrl && $invoice->billing_provider === 'asaas' && $invoice->external_payment_id) {
+            try {
+                $remote = $asaas->payment($invoice->external_payment_id);
+                $paymentUrl = $remote['invoiceUrl'] ?? $remote['bankSlipUrl'] ?? null;
+
+                $invoice->update([
+                    'payment_url' => $remote['invoiceUrl'] ?? $invoice->payment_url,
+                    'bank_slip_url' => $remote['bankSlipUrl'] ?? $invoice->bank_slip_url,
+                ]);
+            } catch (RuntimeException $exception) {
+                return back()->with('error', 'Não foi possível abrir o pagamento: '.$exception->getMessage());
+            }
+        }
+
+        if (! is_string($paymentUrl) || $paymentUrl === '') {
+            return back()->with('error', 'O Asaas ainda não disponibilizou o link de pagamento desta fatura.');
+        }
+
+        return redirect()->away($paymentUrl);
     }
 
     public function products(Team $current_team): View

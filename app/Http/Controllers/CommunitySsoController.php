@@ -31,7 +31,9 @@ class CommunitySsoController extends Controller
             404,
             'Integração com a comunidade indisponível para este produto.',
         );
-        abort_if(abs(now()->timestamp - (int) $data['timestamp']) > self::REQUEST_TTL_SECONDS, 401, 'A solicitação expirou. Gere um novo acesso.');
+        $timestamp = $data['timestamp'] ?? null;
+        abort_unless(is_int($timestamp), 422, 'O timestamp precisa ser um número inteiro.');
+        abort_if(abs(now()->getTimestamp() - $timestamp) > self::REQUEST_TTL_SECONDS, 401, 'A solicitação expirou. Gere um novo acesso.');
 
         $expectedSignature = hash_hmac('sha256', $this->canonicalPayload($data), $product->community_sso_secret);
         $receivedSignature = Str::after((string) $request->header('X-Inovaforce-Signature'), 'sha256=');
@@ -79,9 +81,14 @@ class CommunitySsoController extends Controller
         }
         abort_unless(is_array($payload), 410, 'Este acesso expirou ou já foi utilizado.');
 
-        $product = Product::query()->find($payload['product_id'] ?? null);
-        $team = Team::query()->find($payload['team_id'] ?? null);
-        $user = User::query()->find($payload['user_id'] ?? null);
+        $productId = $payload['product_id'] ?? null;
+        $teamId = $payload['team_id'] ?? null;
+        $userId = $payload['user_id'] ?? null;
+        abort_unless(is_int($productId) && is_int($teamId) && is_int($userId), 410, 'Este acesso é inválido.');
+
+        $product = Product::query()->whereKey($productId)->first();
+        $team = Team::query()->whereKey($teamId)->first();
+        $user = User::query()->whereKey($userId)->first();
         $hasAccess = $product && $team && $user
             && $product->community_sso_enabled
             && ! $user->is_admin

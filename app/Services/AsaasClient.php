@@ -135,6 +135,12 @@ class AsaasClient
     }
 
     /** @return array<string, mixed> */
+    public function payment(string $paymentId): array
+    {
+        return $this->get('/payments/'.$paymentId);
+    }
+
+    /** @return array<string, mixed> */
     public function refundPayment(string $paymentId, ?float $value, string $description): array
     {
         return $this->post('/payments/'.$paymentId.'/refund', array_filter([

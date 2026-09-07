@@ -1,13 +1,14 @@
 <x-layouts::app :title="__('Faturas')">
-    @php
-        $isClientPreview = request()->attributes->has('clientPreviewTeam');
-    @endphp
     <div class="mx-auto flex w-full max-w-7xl flex-col gap-7">
         <div>
             <p class="mb-1 text-sm font-medium text-violet-600">Financeiro</p>
             <h1 class="text-3xl font-semibold tracking-tight">Faturas</h1>
             <p class="mt-2 text-zinc-500">Acompanhe cobranças, vencimentos e comprovantes.</p>
         </div>
+
+        @foreach (['success', 'warning', 'error'] as $type)
+            @if (session($type))<x-portal-alert :type="$type">{{ session($type) }}</x-portal-alert>@endif
+        @endforeach
 
         <div class="portal-card overflow-hidden">
             <div class="overflow-x-auto">
@@ -26,8 +27,8 @@
                                 <td class="px-5 py-4"><x-portal-status :status="$invoice->status" /></td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex items-center justify-end gap-3">
-                                        @if (! $isClientPreview && $invoice->payment_url && in_array($invoice->status, ['open', 'overdue'], true))
-                                            <a href="{{ $invoice->payment_url }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-emerald-600 hover:text-emerald-500">Pagar</a>
+                                        @if (in_array($invoice->status, ['open', 'overdue'], true) && ($invoice->payment_url || $invoice->bank_slip_url || ($invoice->billing_provider === 'asaas' && $invoice->external_payment_id)))
+                                            <a href="{{ route('invoices.pay', ['invoice' => $invoice]) }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-9 items-center rounded-lg bg-brand-lime px-3 font-semibold text-brand-ink transition hover:bg-[#c6ff67]">Pagar agora</a>
                                         @endif
                                         <a href="{{ route('invoices.show', ['invoice' => $invoice]) }}" class="font-semibold text-violet-600 hover:text-violet-500">Ver fatura</a>
                                     </div>

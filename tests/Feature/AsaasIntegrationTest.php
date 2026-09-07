@@ -181,6 +181,78 @@ class AsaasIntegrationTest extends TestCase
         ]);
     }
 
+    public function test_deleted_and_restored_payments_are_synchronized_by_payment_id(): void
+    {
+        $subscription = $this->pendingSubscription(['status' => 'active']);
+        $invoice = Invoice::query()->create([
+            'team_id' => $subscription->team_id,
+            'subscription_id' => $subscription->id,
+            'billing_provider' => 'asaas',
+            'external_payment_id' => 'pay_deleted_and_restored',
+            'number' => 'ASAAS-DELETED-RESTORED',
+            'status' => 'open',
+            'currency' => 'BRL',
+            'subtotal' => 35,
+            'total' => 35,
+            'issued_at' => today()->subDay(),
+            'due_at' => today()->addDays(7),
+            'payment_url' => 'https://asaas.test/i/pay_deleted_and_restored',
+            'bank_slip_url' => 'https://asaas.test/b/pay_deleted_and_restored',
+        ]);
+        $customer = $subscription->team->members()->firstOrFail();
+
+        $this->withHeader('asaas-access-token', 'webhook-token')->postJson(route('webhooks.asaas'), [
+            'id' => 'evt_payment_deleted',
+            'event' => 'PAYMENT_DELETED',
+            'payment' => [
+                'id' => 'pay_deleted_and_restored',
+                'status' => 'DELETED',
+            ],
+        ])->assertOk();
+
+        $invoice->refresh();
+        $this->assertSame('canceled', $invoice->status);
+        $this->assertNull($invoice->payment_url);
+        $this->assertNull($invoice->bank_slip_url);
+        $this->assertSame('35.00', $invoice->total);
+
+        $this->actingAs($customer)
+            ->get(route('invoices.index', ['current_team' => $subscription->team]))
+            ->assertOk()
+            ->assertDontSee('ASAAS-DELETED-RESTORED');
+        $this->actingAs($customer)
+            ->get(route('invoices.show', ['current_team' => $subscription->team, 'invoice' => $invoice]))
+            ->assertNotFound();
+
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin)
+            ->get(route('admin.customers.show', $subscription->team))
+            ->assertOk()
+            ->assertSee('ASAAS-DELETED-RESTORED')
+            ->assertSee('Cancelada');
+
+        $this->withHeader('asaas-access-token', 'webhook-token')->postJson(route('webhooks.asaas'), [
+            'id' => 'evt_payment_restored',
+            'event' => 'PAYMENT_RESTORED',
+            'payment' => [
+                'id' => 'pay_deleted_and_restored',
+                'status' => 'PENDING',
+                'invoiceUrl' => 'https://asaas.test/i/pay_deleted_and_restored',
+                'bankSlipUrl' => 'https://asaas.test/b/pay_deleted_and_restored',
+            ],
+        ])->assertOk();
+
+        $invoice->refresh();
+        $this->assertSame('open', $invoice->status);
+        $this->assertSame('https://asaas.test/i/pay_deleted_and_restored', $invoice->payment_url);
+        $this->assertSame('https://asaas.test/b/pay_deleted_and_restored', $invoice->bank_slip_url);
+
+        $this->actingAs($customer)
+            ->get(route('invoices.index', ['current_team' => $subscription->team]))
+            ->assertOk()
+            ->assertSee('ASAAS-DELETED-RESTORED');
+    }
+
     public function test_payment_confirmation_applies_a_pending_plan_change(): void
     {
         $subscription = $this->pendingSubscription([
@@ -303,8 +375,11 @@ class AsaasIntegrationTest extends TestCase
         $this->actingAs($user)
             ->get(route('invoices.show', ['current_team' => $subscription->team, 'invoice' => $invoice]))
             ->assertOk()
-            ->assertSee('Pagar no Asaas')
-            ->assertSee('https://sandbox.asaas.com/i/pay_asaas_open', false);
+            ->assertSee('Abrir checkout no Asaas')
+            ->assertSee(route('invoices.pay', [
+                'current_team' => $subscription->team,
+                'invoice' => $invoice,
+            ]), false);
     }
 
     public function test_customer_can_cancel_an_asaas_subscription(): void
@@ -441,6 +516,37 @@ class AsaasIntegrationTest extends TestCase
         $this->withHeader('asaas-access-token', 'invalid')
             ->postJson(route('webhooks.asaas'), ['id' => 'evt_invalid', 'event' => 'CHECKOUT_PAID'])
             ->assertUnauthorized();
+    }
+
+    public function test_customer_can_open_checkout_when_local_payment_url_is_missing(): void
+    {
+        Http::fake([
+            'https://api-sandbox.asaas.com/v3/payments/pay_missing_url' => Http::response([
+                'id' => 'pay_missing_url',
+                'status' => 'PENDING',
+                'invoiceUrl' => 'https://asaas.test/i/pay_missing_url',
+            ]),
+        ]);
+        $user = User::factory()->create();
+        $invoice = Invoice::query()->create([
+            'team_id' => $user->current_team_id,
+            'kind' => 'one_off',
+            'billing_provider' => 'asaas',
+            'external_payment_id' => 'pay_missing_url',
+            'number' => 'ASAAS-MISSING-URL',
+            'status' => 'open',
+            'currency' => 'BRL',
+            'subtotal' => 35,
+            'total' => 35,
+            'issued_at' => today(),
+            'due_at' => today()->addDays(5),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('invoices.pay', ['current_team' => $user->currentTeam, 'invoice' => $invoice]))
+            ->assertRedirect('https://asaas.test/i/pay_missing_url');
+
+        $this->assertSame('https://asaas.test/i/pay_missing_url', $invoice->refresh()->payment_url);
     }
 
     /** @param array<string, mixed> $overrides */

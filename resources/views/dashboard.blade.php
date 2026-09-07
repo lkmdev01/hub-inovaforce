@@ -4,9 +4,9 @@
         $activeSubscriptions = $subscriptions->whereIn('status', ['active', 'trialing']);
         $monthlyTotal = $activeSubscriptions->sum(fn ($subscription) => $subscription->monthlyEquivalentAmount());
         $accentClasses = [
-            'violet' => 'from-violet-500 to-fuchsia-500',
-            'sky' => 'from-sky-500 to-cyan-400',
-            'fuchsia' => 'from-fuchsia-500 to-pink-500',
+            'violet' => 'from-brand-blue to-brand-cyan',
+            'sky' => 'from-brand-cyan to-brand-aqua',
+            'fuchsia' => 'from-brand-blue to-brand-aqua',
             'emerald' => 'from-emerald-500 to-teal-400',
             'amber' => 'from-amber-500 to-orange-500',
             'rose' => 'from-rose-500 to-pink-500',
@@ -22,23 +22,23 @@
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">{{ session('success') }}</div>
         @endif
 
-        <section class="relative isolate overflow-hidden rounded-[2rem] bg-zinc-950 px-6 py-8 text-white shadow-2xl shadow-violet-950/20 sm:px-9 sm:py-10 lg:px-12 lg:py-12">
-            <div class="absolute -right-16 -top-24 -z-10 size-72 rounded-full bg-violet-600/35 blur-3xl"></div>
-            <div class="absolute -bottom-28 left-1/3 -z-10 size-72 rounded-full bg-fuchsia-600/20 blur-3xl"></div>
+        <section class="relative isolate overflow-hidden rounded-[2rem] bg-brand-ink px-6 py-8 text-white shadow-2xl shadow-brand-blue/20 sm:px-9 sm:py-10 lg:px-12 lg:py-12">
+            <div class="absolute -right-16 -top-24 -z-10 size-72 rounded-full bg-brand-blue/35 blur-3xl"></div>
+            <div class="absolute -bottom-28 left-1/3 -z-10 size-72 rounded-full bg-brand-lime/15 blur-3xl"></div>
             <div class="absolute inset-0 -z-10 opacity-30 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,.18)_1px,transparent_0)] [background-size:24px_24px]"></div>
 
             <div class="grid items-center gap-10 lg:grid-cols-[1.25fr_.75fr]">
                 <div>
-                    <span class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[.18em] text-violet-100 backdrop-blur">
-                        <span class="size-1.5 rounded-full bg-fuchsia-400 shadow-[0_0_12px_rgba(232,121,249,.9)]"></span>
+                    <span class="inline-flex items-center gap-2 rounded-full border border-brand-aqua/30 bg-brand-aqua/10 px-3 py-1 text-xs font-semibold uppercase tracking-[.18em] text-brand-aqua backdrop-blur">
+                        <span class="size-1.5 rounded-full bg-brand-lime shadow-[0_0_12px_rgba(182,255,59,.9)]"></span>
                         Comunidade Inovaforce
                     </span>
-                    <p class="mt-6 text-sm font-medium text-violet-200">{{ now()->translatedFormat('l, d \d\e F') }}</p>
+                    <p class="mt-6 text-sm font-medium text-brand-aqua">{{ now()->translatedFormat('l, d \d\e F') }}</p>
                     <h1 class="mt-2 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">{{ $isClientPreview ? 'Portal de '.$current_team->name : 'Olá, '.str(auth()->user()->name)->before(' ').'.' }}</h1>
                     <p class="mt-4 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">Produtos, pagamentos, suporte e novidades em um só lugar para sua empresa crescer com a Inovaforce.</p>
                     <div class="mt-7 flex flex-wrap gap-3">
-                        <a href="#meus-produtos" class="inline-flex h-11 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-zinc-950 transition hover:bg-violet-100">Acessar meus produtos</a>
-                        <a href="{{ route('products.index') }}" wire:navigate class="inline-flex h-11 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/10">Conhecer o ecossistema</a>
+                        <a href="#meus-produtos" class="inline-flex h-11 items-center justify-center rounded-xl bg-brand-lime px-5 text-sm font-semibold text-brand-ink transition hover:bg-[#c6ff67]">Acessar meus produtos</a>
+                        <a href="{{ route('products.index') }}" wire:navigate class="inline-flex h-11 items-center justify-center rounded-xl border border-brand-aqua/30 bg-brand-aqua/5 px-5 text-sm font-semibold text-white backdrop-blur transition hover:bg-brand-aqua/10">Conhecer o ecossistema</a>
                     </div>
                 </div>
 

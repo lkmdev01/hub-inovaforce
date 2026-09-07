@@ -71,7 +71,8 @@ class AdminSubscriptionController extends Controller
             'seats' => ['required', 'integer', 'min:1', 'max:500'],
             'first_due_date' => ['required', 'date', 'after_or_equal:today'],
         ]);
-        $plan = ProductPlan::query()->with('product')->findOrFail($data['product_plan_id']);
+        $planId = (int) $data['product_plan_id'];
+        $plan = ProductPlan::query()->with('product')->whereKey($planId)->firstOrFail();
         $seats = (int) $data['seats'];
         $customer = $team->billingCustomer;
 
@@ -136,7 +137,8 @@ class AdminSubscriptionController extends Controller
 
         try {
             $payments = $asaas->subscriptionPayments($remoteId);
-            $payment = collect($payments['data'] ?? [])->first();
+            $paymentList = $payments['data'] ?? null;
+            $payment = is_array($paymentList) ? ($paymentList[array_key_first($paymentList)] ?? null) : null;
 
             if (is_array($payment) && filled($payment['id'] ?? null)) {
                 $invoice = $this->storeFirstInvoice($subscription, $payment);

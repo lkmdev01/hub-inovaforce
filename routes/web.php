@@ -73,6 +73,7 @@ Route::prefix('{current_team}')
         Route::post('assinaturas/{subscription}/alternar', [BillingPortalController::class, 'toggleSubscription'])->name('subscriptions.toggle');
         Route::get('faturas', [BillingPortalController::class, 'invoices'])->name('invoices.index');
         Route::get('faturas/{invoice}', [BillingPortalController::class, 'invoice'])->name('invoices.show');
+        Route::get('faturas/{invoice}/pagar', [BillingPortalController::class, 'payInvoice'])->name('invoices.pay');
         Route::get('produtos', [BillingPortalController::class, 'products'])->name('products.index');
         Route::get('cliente', [BillingCustomerController::class, 'show'])->name('customer.show');
         Route::put('cliente', [BillingCustomerController::class, 'update'])->name('customer.update');

@@ -43,11 +43,13 @@ class AsaasWebhookController extends Controller
                 return ['processed' => false, 'webhook_id' => $webhook->id];
             }
 
-            $subscription = $this->findSubscription($payload);
+            $invoice = $this->findInvoice($payload);
+            $subscription = $invoice?->subscription;
+            $subscription ??= $this->findSubscription($payload);
             if ($subscription) {
                 $this->applyEvent($subscription, $eventName, $payload);
             } else {
-                $this->syncStandaloneInvoice($eventName, $payload);
+                $this->syncStandaloneInvoice($eventName, $payload, $invoice);
             }
 
             $webhook->update([
@@ -97,6 +99,21 @@ class AsaasWebhookController extends Controller
         }
 
         return null;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function findInvoice(array $payload): ?Invoice
+    {
+        $paymentId = $this->firstId($payload, ['payment.id']);
+
+        if (! $paymentId) {
+            return null;
+        }
+
+        return Invoice::query()
+            ->where('billing_provider', 'asaas')
+            ->where('external_payment_id', $paymentId)
+            ->first();
     }
 
     /** @param array<string, mixed> $payload */
@@ -199,31 +216,44 @@ class AsaasWebhookController extends Controller
             'PAYMENT_REFUND_IN_PROGRESS' => 'refund_pending',
             'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE', 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL' => 'chargeback',
             'PAYMENT_DELETED' => 'canceled',
+            'PAYMENT_RESTORED' => $this->mapPaymentStatus((string) ($payment['status'] ?? 'PENDING')),
             'PAYMENT_REPROVED_BY_RISK_ANALYSIS' => 'failed',
             default => $this->mapPaymentStatus((string) ($payment['status'] ?? 'PENDING')),
         };
-        $amount = (float) ($payment['value'] ?? $subscription->amount);
-        $dueAt = $this->date($payment['dueDate'] ?? null) ?? today();
+        $invoice = Invoice::query()
+            ->where('billing_provider', 'asaas')
+            ->where('external_payment_id', $paymentId)
+            ->first();
+        $existingAmount = $invoice ? (float) $invoice->total : (float) $subscription->amount;
+        $existingDueAt = $invoice ? $invoice->due_at : today();
+        $existingNumber = $invoice ? $invoice->number : 'ASAAS-'.Str::upper(Str::after($paymentId, 'pay_'));
+        $existingIssuedAt = $invoice ? $invoice->issued_at : today();
+        $amount = is_numeric($payment['value'] ?? null)
+            ? (float) $payment['value']
+            : $existingAmount;
+        $dueAt = $this->date($payment['dueDate'] ?? null) ?? $existingDueAt;
         $paidAt = $status === 'paid'
             ? ($this->date($payment['paymentDate'] ?? $payment['clientPaymentDate'] ?? null) ?? now())
             : null;
+        $paymentUrl = $eventName === 'PAYMENT_DELETED' ? null : ($payment['invoiceUrl'] ?? $invoice?->payment_url);
+        $bankSlipUrl = $eventName === 'PAYMENT_DELETED' ? null : ($payment['bankSlipUrl'] ?? $invoice?->bank_slip_url);
 
         Invoice::query()->updateOrCreate(
             ['billing_provider' => 'asaas', 'external_payment_id' => $paymentId],
             [
                 'team_id' => $subscription->team_id,
                 'subscription_id' => $subscription->id,
-                'number' => 'ASAAS-'.Str::upper(Str::after($paymentId, 'pay_')),
+                'number' => $existingNumber,
                 'status' => $status,
                 'currency' => 'BRL',
                 'subtotal' => $amount,
                 'total' => $amount,
-                'issued_at' => $this->date($payment['dateCreated'] ?? null) ?? today(),
+                'issued_at' => $this->date($payment['dateCreated'] ?? null) ?? $existingIssuedAt,
                 'due_at' => $dueAt,
                 'paid_at' => $paidAt,
-                'payment_url' => $payment['invoiceUrl'] ?? null,
-                'receipt_url' => $payment['transactionReceiptUrl'] ?? $payment['receiptUrl'] ?? null,
-                'bank_slip_url' => $payment['bankSlipUrl'] ?? null,
+                'payment_url' => $paymentUrl,
+                'receipt_url' => $payment['transactionReceiptUrl'] ?? $payment['receiptUrl'] ?? $invoice?->receipt_url,
+                'bank_slip_url' => $bankSlipUrl,
                 'failure_reason' => $payment['failureReason'] ?? null,
                 'refunded_at' => in_array($status, ['refunded', 'refund_pending'], true) ? now() : null,
             ],
@@ -244,7 +274,7 @@ class AsaasWebhookController extends Controller
     }
 
     /** @param array<string, mixed> $payload */
-    private function syncStandaloneInvoice(string $eventName, array $payload): void
+    private function syncStandaloneInvoice(string $eventName, array $payload, ?Invoice $invoice = null): void
     {
         $payment = data_get($payload, 'payment', []);
         $paymentId = $this->firstId($payload, ['payment.id']);
@@ -252,7 +282,7 @@ class AsaasWebhookController extends Controller
             return;
         }
 
-        $invoice = Invoice::query()
+        $invoice ??= Invoice::query()
             ->whereNull('subscription_id')
             ->where('billing_provider', 'asaas')
             ->where('external_payment_id', $paymentId)
@@ -268,16 +298,20 @@ class AsaasWebhookController extends Controller
             'PAYMENT_REFUND_IN_PROGRESS' => 'refund_pending',
             'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE', 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL' => 'chargeback',
             'PAYMENT_DELETED' => 'canceled',
+            'PAYMENT_RESTORED' => $this->mapPaymentStatus((string) ($payment['status'] ?? 'PENDING')),
             default => $this->mapPaymentStatus((string) ($payment['status'] ?? 'PENDING')),
         };
+
+        $paymentUrl = $eventName === 'PAYMENT_DELETED' ? null : ($payment['invoiceUrl'] ?? $invoice->payment_url);
+        $bankSlipUrl = $eventName === 'PAYMENT_DELETED' ? null : ($payment['bankSlipUrl'] ?? $invoice->bank_slip_url);
 
         $invoice->update([
             'status' => $status,
             'paid_at' => $status === 'paid' ? ($this->date($payment['paymentDate'] ?? null) ?? now()) : $invoice->paid_at,
             'refunded_at' => in_array($status, ['refunded', 'refund_pending'], true) ? now() : $invoice->refunded_at,
-            'payment_url' => $payment['invoiceUrl'] ?? $invoice->payment_url,
+            'payment_url' => $paymentUrl,
             'receipt_url' => $payment['transactionReceiptUrl'] ?? $payment['receiptUrl'] ?? $invoice->receipt_url,
-            'bank_slip_url' => $payment['bankSlipUrl'] ?? $invoice->bank_slip_url,
+            'bank_slip_url' => $bankSlipUrl,
             'failure_reason' => $payment['failureReason'] ?? null,
         ]);
 

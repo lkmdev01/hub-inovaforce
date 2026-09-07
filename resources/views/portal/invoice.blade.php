@@ -1,13 +1,13 @@
 <x-layouts::app :title="$invoice->number">
-    @php
-        $isClientPreview = request()->attributes->has('clientPreviewTeam');
-    @endphp
     <div class="mx-auto w-full max-w-4xl">
+        @foreach (['success', 'warning', 'error'] as $type)
+            @if (session($type))<div class="mb-5 print:hidden"><x-portal-alert :type="$type">{{ session($type) }}</x-portal-alert></div>@endif
+        @endforeach
         <div class="mb-5 flex items-center justify-between print:hidden">
             <a href="{{ route('invoices.index') }}" wire:navigate class="text-sm font-semibold text-zinc-500 hover:text-zinc-900">← Voltar para faturas</a>
             <div class="flex items-center gap-3">
-                @if (! $isClientPreview && $invoice->payment_url && in_array($invoice->status, ['open', 'overdue'], true))
-                    <a href="{{ $invoice->payment_url }}" target="_blank" rel="noopener noreferrer" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">Pagar no Asaas</a>
+                @if (in_array($invoice->status, ['open', 'overdue'], true) && ($invoice->payment_url || $invoice->bank_slip_url || ($invoice->billing_provider === 'asaas' && $invoice->external_payment_id)))
+                    <a href="{{ route('invoices.pay', ['invoice' => $invoice]) }}" target="_blank" rel="noopener noreferrer" class="rounded-xl bg-brand-lime px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-[#c6ff67]">Abrir checkout no Asaas</a>
                 @endif
                 @if ($invoice->receipt_url)
                     <a href="{{ $invoice->receipt_url }}" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">Comprovante</a>
