@@ -64,8 +64,7 @@ class AdminSubscriptionController extends Controller
         BillingProviderManager $billing,
         AsaasClient $asaas,
         BillingAutomationService $automation,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $data = $request->validate([
             'product_plan_id' => ['required', 'integer', Rule::exists('product_plans', 'id')->where('status', 'active')],
             'seats' => ['required', 'integer', 'min:1', 'max:500'],
