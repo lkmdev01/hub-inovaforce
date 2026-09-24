@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class VerifyInternalApiSignature
@@ -33,6 +34,16 @@ class VerifyInternalApiSignature
         $expected = 'sha256='.hash_hmac('sha256', $canonical, $secret);
 
         abort_unless(hash_equals($expected, $signature), 401, 'Assinatura interna inválida.');
+
+        if (! $request->isMethodSafe()) {
+            $requestId = (string) $request->header('X-Inova-Request-Id');
+            abort_unless($requestId !== '' && strlen($requestId) <= 100, 400, 'Identificador da operação ausente.');
+            abort_unless(
+                Cache::add('internal-api-request:'.hash('sha256', $client.':'.$requestId), true, now()->addMinutes(10)),
+                409,
+                'Essa operação já foi recebida.',
+            );
+        }
 
         return $next($request);
     }

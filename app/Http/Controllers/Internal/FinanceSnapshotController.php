@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AutomationAlert;
 use App\Models\BillingCustomer;
 use App\Models\Invoice;
+use App\Models\Product;
+use App\Models\ProductPlan;
 use App\Models\Subscription;
 use App\Models\SystemRun;
 use App\Services\BillingProviderManager;
@@ -75,6 +77,8 @@ class FinanceSnapshotController extends Controller
                 'issued_at' => $invoice->issued_at->toDateString(),
                 'due_at' => $invoice->due_at->toDateString(),
                 'paid_at' => $invoice->paid_at?->toIso8601String(),
+                'description' => $invoice->description,
+                'can_refund' => $invoice->billing_provider === 'asaas' && filled($invoice->external_payment_id) && $invoice->status === 'paid',
                 'hub_url' => route('admin.customers.show', $invoice->team),
             ]);
 
@@ -103,6 +107,26 @@ class FinanceSnapshotController extends Controller
                 'status' => $run->status,
                 'ran_at' => Carbon::parse((string) $run->ran_at)->toIso8601String(),
                 'error' => $run->error_message,
+            ]);
+
+        $products = Product::query()
+            ->with(['plans' => fn ($query) => $query->where('status', 'active')])
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Product $product) => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'plans' => $product->plans->map(fn (ProductPlan $plan) => [
+                    'id' => $plan->id,
+                    'name' => $plan->name,
+                    'billing_cycle' => $plan->billing_cycle,
+                    'billing_type' => $plan->billing_type,
+                    'price' => (float) $plan->price,
+                    'pricing_model' => $plan->pricing_model,
+                    'minimum_seats' => $plan->minimum_seats,
+                    'maximum_seats' => $plan->maximum_seats,
+                ])->values()->all(),
             ]);
 
         return response()->json([
@@ -136,6 +160,11 @@ class FinanceSnapshotController extends Controller
                 'healthy' => $runs->where('status', '!=', 'failed')->count() === $runs->count(),
                 'runs' => $runs,
                 'hub_url' => route('admin.automations.index'),
+            ],
+            'catalog' => ['products' => $products],
+            'capabilities' => [
+                'create_customer', 'sync_customer', 'create_payment', 'create_subscription',
+                'cancel_subscription', 'refund_invoice', 'resolve_alert',
             ],
             'links' => [
                 'dashboard' => route('admin.dashboard'),
