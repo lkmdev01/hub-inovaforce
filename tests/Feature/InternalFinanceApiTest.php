@@ -87,6 +87,30 @@ class InternalFinanceApiTest extends TestCase
             ->assertJsonMissing(['external_customer_id' => 'cus_test']);
     }
 
+    public function test_signed_customer_options_expose_all_safe_customer_references(): void
+    {
+        $team = Team::query()->create(['name' => 'Cliente Operacional', 'slug' => 'cliente-operacional']);
+        BillingCustomer::query()->create([
+            'team_id' => $team->id,
+            'name' => 'Contato Cliente',
+            'email' => 'privado@cliente.test',
+            'tax_id' => '12345678901',
+            'billing_provider' => 'asaas',
+            'external_customer_id' => 'cus_private',
+            'synced_at' => now(),
+        ]);
+        $path = '/internal/api/v1/customers/options';
+
+        $this->withHeaders($this->signatureHeadersFor('GET', $path, [], 'customer-options'))
+            ->getJson($path)
+            ->assertOk()
+            ->assertJsonPath('customers.0.team_slug', 'cliente-operacional')
+            ->assertJsonPath('customers.0.synced', true)
+            ->assertJsonMissing(['email' => 'privado@cliente.test'])
+            ->assertJsonMissing(['tax_id' => '12345678901'])
+            ->assertJsonMissing(['external_customer_id' => 'cus_private']);
+    }
+
     public function test_snapshot_rejects_expired_signatures(): void
     {
         $this->withHeaders($this->signatureHeaders(now()->subMinutes(10)->timestamp))

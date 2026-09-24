@@ -12,6 +12,7 @@ use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\BillingCustomerController;
 use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\CommunitySsoController;
+use App\Http\Controllers\Internal\CustomerOptionsController;
 use App\Http\Controllers\Internal\FinanceSnapshotController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\SubscriptionCheckoutController;
@@ -26,6 +27,9 @@ Route::post('webhooks/asaas', AsaasWebhookController::class)->name('webhooks.asa
 Route::get('internal/api/v1/finance/snapshot', FinanceSnapshotController::class)
     ->middleware(['internal.signature', 'throttle:60,1'])
     ->name('internal.finance.snapshot');
+Route::get('internal/api/v1/customers/options', CustomerOptionsController::class)
+    ->middleware(['internal.signature', 'throttle:60,1'])
+    ->name('internal.customers.options');
 Route::post('api/community/sso/{product:slug}', [CommunitySsoController::class, 'launch'])
     ->middleware('throttle:30,1')
     ->name('community.sso.launch');
