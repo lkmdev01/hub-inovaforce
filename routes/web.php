@@ -12,6 +12,7 @@ use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\BillingCustomerController;
 use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\CommunitySsoController;
+use App\Http\Controllers\Internal\FinanceSnapshotController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\SubscriptionCheckoutController;
 use App\Http\Middleware\EnsureClientPreviewIsReadOnly;
@@ -22,6 +23,9 @@ Route::view('/', 'welcome')->name('home');
 Route::view('termos-de-uso', 'legal.terms')->name('legal.terms');
 Route::view('politica-de-privacidade', 'legal.privacy')->name('legal.privacy');
 Route::post('webhooks/asaas', AsaasWebhookController::class)->name('webhooks.asaas');
+Route::get('internal/api/v1/finance/snapshot', FinanceSnapshotController::class)
+    ->middleware(['internal.signature', 'throttle:60,1'])
+    ->name('internal.finance.snapshot');
 Route::post('api/community/sso/{product:slug}', [CommunitySsoController::class, 'launch'])
     ->middleware('throttle:30,1')
     ->name('community.sso.launch');

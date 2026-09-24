@@ -4,6 +4,7 @@ use App\Http\Middleware\AuditMutations;
 use App\Http\Middleware\EnsureAdministrator;
 use App\Http\Middleware\EnsureTermsAccepted;
 use App\Http\Middleware\SetTeamUrlDefaults;
+use App\Http\Middleware\VerifyInternalApiSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureAdministrator::class,
             'audit' => AuditMutations::class,
             'terms' => EnsureTermsAccepted::class,
+            'internal.signature' => VerifyInternalApiSignature::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

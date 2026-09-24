@@ -47,4 +47,10 @@ return [
         'token' => env('WHATSAPP_WEBHOOK_TOKEN'),
     ],
 
+    'internal_api' => [
+        'client_id' => env('INTERNAL_API_CLIENT_ID'),
+        'secret' => env('INTERNAL_API_SECRET'),
+        'max_age' => (int) env('INTERNAL_API_MAX_AGE', 300),
+    ],
+
 ];
